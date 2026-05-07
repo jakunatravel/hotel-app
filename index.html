@@ -403,8 +403,8 @@ async function buildAndSaveRecord(data,teamData,recordId){
   console.log('Save called. recordId:', recordId, 'type:', typeof recordId);
   console.log('existingRecord:', JSON.stringify(existingRecord?.id), existingRecord?.Name);
   if(recordId){
-    record.id = recordId;
-    return crmCall(`/${MODULE.Hotels}`,'PUT',{data:[record]});
+    record.id = String(recordId);
+    return crmCall(`/${MODULE.Hotels}/${String(recordId)}`,'PUT',{data:[record]});
   } else {
     return crmCall(`/${MODULE.Hotels}`,'POST',{data:[record]});
   }
