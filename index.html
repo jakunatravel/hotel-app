@@ -108,7 +108,7 @@
     <div id="formStep1">
       <div class="card">
         <div class="card-title">Hotel Information</div>
-        <div class="field"><label>Hotel Name *</label><input type="text" id="hotelName" placeholder="e.g. Four Seasons Hotel George V Paris"></div>
+        <div class="field"><label>Hotel Name *</label><input type="text" id="hotelName" placeholder="e.g. Four Seasons Hotel George V Paris" autocomplete="off"><div id="hotelSuggestions" style="display:none;border:1px solid var(--border);border-top:none;border-radius:0 0 2px 2px;background:var(--white);max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.08);"></div><div id="hotelSearchStatus" style="font-size:11px;color:var(--muted);margin-top:4px;min-height:16px;"></div></div>
         <div class="field"><label>Hotel Website <span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">optional — helps AI research accuracy</span></label><input type="url" id="hotelWebsite" placeholder="https://www.example.com"></div>
         <div class="field"><label>Notes <span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">— paste anything: meeting notes, client feedback, room tips, context</span></label><textarea id="hotelNotes" placeholder="e.g. Great for honeymoons, ask for rooms on 5th floor, GM very responsive..."></textarea></div>
       </div>
@@ -321,7 +321,12 @@ document.getElementById('btnResearch').addEventListener('click',async()=>{
   document.getElementById('aiStatusBox').classList.add('visible');
   try{
     setAIStatus('Checking if hotel exists in CRM...');
-    existingRecord=await searchRecord(MODULE.Hotels,'Name',hotelName);
+    if(!existingRecord){
+      existingRecord=await searchRecord(MODULE.Hotels,'Name',hotelName);
+    } else {
+      // Already selected from suggestions — fetch full record
+      try{const full=await crmCall('/Hotels/'+existingRecord.id);if(full.data)existingRecord=full.data[0];}catch(e){}
+    }
     setAIStatus(existingRecord?'Hotel found — researching updates...':'Researching '+hotelName+'...');
     const data=await researchHotel(hotelName,website,notes,existingRecord);
     document.getElementById('researchLog').style.display='block';
@@ -384,6 +389,73 @@ document.getElementById('btnSettings').addEventListener('click',()=>{
     ['clientId','clientSecret','grantCode'].forEach(id=>document.getElementById(id).value='');
     showScreen('screenSetup');
   }
+});
+
+// ─── LIVE HOTEL SEARCH ───────────────────────────────────────────────────────
+let searchTimeout=null;
+let allHotels=[];
+
+async function loadAllHotels(){
+  if(allHotels.length>0)return;
+  try{
+    const d=await crmCall('/Hotels?fields=id,Name&per_page=200');
+    if(d.data)allHotels=d.data;
+    // Load more pages if needed
+    if(d.info&&d.info.more_records){
+      const d2=await crmCall('/Hotels?fields=id,Name&per_page=200&page=2');
+      if(d2.data)allHotels=[...allHotels,...d2.data];
+    }
+  }catch(e){console.log('Could not load hotels:',e.message);}
+}
+
+function fuzzyMatch(query,name){
+  const q=query.toLowerCase().trim();
+  const n=name.toLowerCase();
+  if(n.includes(q))return true;
+  // Check if all words in query appear in name
+  const words=q.split(/\s+/).filter(w=>w.length>2);
+  return words.length>1&&words.every(w=>n.includes(w));
+}
+
+function showSuggestions(query){
+  const box=document.getElementById('hotelSuggestions');
+  const status=document.getElementById('hotelSearchStatus');
+  if(!query||query.length<3){box.style.display='none';status.textContent='';return;}
+  const matches=allHotels.filter(h=>fuzzyMatch(query,h.Name)).slice(0,6);
+  if(matches.length===0){box.style.display='none';status.textContent='No existing matches — will create new record.';return;}
+  status.textContent=`${matches.length} existing record${matches.length>1?'s':''} found in CRM:`;
+  box.style.display='block';
+  box.innerHTML=matches.map(h=>`
+    <div onclick="selectExistingHotel('${h.id}','${h.Name.replace(/'/g,"\\'")}',this)"
+         style="padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"
+         onmouseover="this.style.background='var(--paper)'" onmouseout="this.style.background='var(--white)'">
+      <span>${h.Name}</span>
+      <span style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-left:12px;">Update</span>
+    </div>
+  `).join('');
+}
+
+function selectExistingHotel(id,name,el){
+  document.getElementById('hotelName').value=name;
+  document.getElementById('hotelSuggestions').style.display='none';
+  document.getElementById('hotelSearchStatus').innerHTML=`<span style="color:var(--success)">✓ Will update existing record: <strong>${name}</strong></span>`;
+  existingRecord={id,Name:name};
+}
+
+document.getElementById('hotelName').addEventListener('input',function(){
+  clearTimeout(searchTimeout);
+  existingRecord=null;
+  document.getElementById('hotelSearchStatus').textContent='';
+  document.getElementById('hotelSuggestions').style.display='none';
+  if(!tokens.refreshToken)return;
+  searchTimeout=setTimeout(async()=>{
+    await loadAllHotels();
+    showSuggestions(this.value);
+  },400);
+});
+
+document.getElementById('hotelName').addEventListener('blur',()=>{
+  setTimeout(()=>document.getElementById('hotelSuggestions').style.display='none',200);
 });
 
 (function init(){
