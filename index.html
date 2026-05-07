@@ -741,52 +741,102 @@ Return ONLY a valid JSON object with these exact fields. Do not include any othe
 function buildPreview(data, teamData) {
   const grid = document.getElementById('previewGrid');
   const notesEl = document.getElementById('previewNotes');
-  
-  const fields = [
-    { label: 'Hotel Name', value: data.hotel_name },
-    { label: 'Hotel Group', value: data.hotel_group },
-    { label: 'Website', value: data.website },
-    { label: 'Phone', value: data.phone },
-    { label: 'Email', value: data.email },
-    { label: 'Reservations Email', value: data.reservations_email },
-    { label: 'Concierge Email', value: data.concierge_email },
-    { label: 'Address', value: [data.street_address, data.city, data.state_province, data.zip, data.country].filter(Boolean).join(', ') },
-    { label: 'Lat / Long', value: data.latitude && data.longitude ? `${data.latitude}, ${data.longitude}` : null },
-    { label: 'Price Reference', value: data.price_reference },
-    { label: 'Status', value: teamData.status },
-    { label: 'Commission', value: teamData.commission + '%' },
-    { label: 'Inspected', value: teamData.inspected ? 'Yes' : 'No' },
-    { label: 'Preferred Room', value: teamData.preferredRoom },
-    { label: 'Special Requests', value: teamData.specialRequests },
-  ];
 
-  grid.innerHTML = fields.map(f => `
-    <div class="preview-item">
-      <div class="preview-label">${f.label}</div>
-      <div class="preview-value ${!f.value ? 'empty' : ''}">${f.value || '—'}</div>
-    </div>
-  `).join('');
+  // Store data globally so edits can be read on save
+  window._previewData = data;
+  window._teamData = teamData;
 
-  // Multi-select fields
-  const multiFields = [
-    { label: 'Affiliation', values: data.affiliation },
-    { label: 'Meal Plans', values: data.meal_plans },
-    { label: 'Facilities', values: data.facilities },
-    { label: 'Hotel Tags', values: data.hotel_tags },
-  ];
-  multiFields.forEach(f => {
-    const div = document.createElement('div');
-    div.className = 'preview-item';
-    div.style.gridColumn = '1 / -1';
-    div.innerHTML = `
-      <div class="preview-label">${f.label}</div>
-      <div class="pills-preview">${(f.values||[]).map(v => `<span class="tag">${v}</span>`).join('') || '<span style="color:var(--muted);font-style:italic;font-size:13px">—</span>'}</div>
-    `;
-    grid.appendChild(div);
+  const OPTIONS = {
+    affiliation: ['Design Hotels','Leading Hotels of the World','Luxury Collection by Marriot','Preferred Hotels','Relais & Chateaux','Serandipians','Small Luxury Hotels of the World','Virtuoso'],
+    mealPlans: ['Breakfast','Half Board','Full Board','All Inclusive'],
+    facilities: ['Bar','Full Spa','Garden Area','Gym','Indoor Pool','Kids Club','Massage Room','Meeting Areas','Outdoor Pool','Restaurant','Sports Facilities'],
+    hotelTags: ['Adults Only','Art','Beachfront','Beautiful Landscape','Boutique Hotel','City Hotel','Contemporary Design','Cruise (shared)','Historical','Kids-Friendly','Lodge','Pet-Friendly','PVT Charter','Resort','Spa/Wellness','Traditional Luxury','Train Journeys','Winery'],
+    priceReference: ['200 or Less','200-500','500-800','800-1200','1200-2000','+2000'],
+    status: ['Vetted and approved','Non vetted but good to use','Use only for specific requests','DO NOT USE']
+  };
+
+  function textField(id, value) {
+    return `<input type="text" id="edit_${id}" value="${(value||'').replace(/"/g,'&quot;')}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:2px;background:var(--surface);font-family:inherit;font-size:13px;color:var(--ink);">`;
+  }
+
+  function selectField(id, value, options) {
+    const opts = options.map(o => `<option value="${o}" ${o===value?'selected':''}>${o}</option>`).join('');
+    return `<select id="edit_${id}" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:2px;background:var(--surface);font-family:inherit;font-size:13px;color:var(--ink);"><option value="">—</option>${opts}</select>`;
+  }
+
+  function multiField(id, values, options) {
+    const selected = values || [];
+    return `<div id="edit_${id}" style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0;">${options.map(o => `
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;padding:3px 8px;border:1px solid var(--border);border-radius:20px;background:${selected.includes(o)?'var(--ink)':'var(--surface)'};color:${selected.includes(o)?'var(--gold)':'var(--ink)'};">
+        <input type="checkbox" value="${o}" ${selected.includes(o)?'checked':''} style="display:none;" onchange="this.parentElement.style.background=this.checked?'var(--ink)':'var(--surface)';this.parentElement.style.color=this.checked?'var(--gold)':'var(--ink)';">
+        ${o}
+      </label>`).join('')}</div>`;
+  }
+
+  function getMulti(id) {
+    const el = document.getElementById('edit_' + id);
+    return Array.from(el.querySelectorAll('input[type=checkbox]:checked')).map(c => c.value);
+  }
+
+  grid.innerHTML = `
+    <div class="preview-item"><div class="preview-label">Hotel Name</div>${textField('hotel_name', data.hotel_name)}</div>
+    <div class="preview-item"><div class="preview-label">Hotel Group</div>${textField('hotel_group', data.hotel_group)}</div>
+    <div class="preview-item"><div class="preview-label">Website</div>${textField('website', data.website)}</div>
+    <div class="preview-item"><div class="preview-label">Phone</div>${textField('phone', data.phone)}</div>
+    <div class="preview-item"><div class="preview-label">Email</div>${textField('email', data.email)}</div>
+    <div class="preview-item"><div class="preview-label">Reservations Email</div>${textField('reservations_email', data.reservations_email)}</div>
+    <div class="preview-item"><div class="preview-label">Concierge Email</div>${textField('concierge_email', data.concierge_email)}</div>
+    <div class="preview-item"><div class="preview-label">City</div>${textField('city', data.city)}</div>
+    <div class="preview-item"><div class="preview-label">Country</div>${textField('country', data.country)}</div>
+    <div class="preview-item"><div class="preview-label">Street Address</div>${textField('street_address', data.street_address)}</div>
+    <div class="preview-item"><div class="preview-label">Zip</div>${textField('zip', data.zip)}</div>
+    <div class="preview-item"><div class="preview-label">Lat / Long</div><div style="display:flex;gap:8px;">${textField('latitude', data.latitude)}${textField('longitude', data.longitude)}</div></div>
+    <div class="preview-item"><div class="preview-label">Price Reference</div>${selectField('price_reference', data.price_reference, OPTIONS.priceReference)}</div>
+    <div class="preview-item"><div class="preview-label">Status</div>${selectField('status', teamData.status, OPTIONS.status)}</div>
+    <div class="preview-item"><div class="preview-label">Commission %</div>${textField('commission', teamData.commission)}</div>
+    <div class="preview-item"><div class="preview-label">Inspected</div><select id="edit_inspected" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:2px;background:var(--surface);font-family:inherit;font-size:13px;"><option value="false" ${!teamData.inspected?'selected':''}>No</option><option value="true" ${teamData.inspected?'selected':''}>Yes</option></select></div>
+    <div class="preview-item"><div class="preview-label">Preferred Room</div>${textField('preferred_room', teamData.preferredRoom)}</div>
+    <div class="preview-item" style="grid-column:1/-1"><div class="preview-label">Special Requests</div>${textField('special_requests', teamData.specialRequests)}</div>
+    <div class="preview-item" style="grid-column:1/-1"><div class="preview-label">Affiliation</div>${multiField('affiliation', data.affiliation, OPTIONS.affiliation)}</div>
+    <div class="preview-item" style="grid-column:1/-1"><div class="preview-label">Meal Plans</div>${multiField('meal_plans', data.meal_plans, OPTIONS.mealPlans)}</div>
+    <div class="preview-item" style="grid-column:1/-1"><div class="preview-label">Facilities</div>${multiField('facilities', data.facilities, OPTIONS.facilities)}</div>
+    <div class="preview-item" style="grid-column:1/-1"><div class="preview-label">Hotel Tags</div>${multiField('hotel_tags', data.hotel_tags, OPTIONS.hotelTags)}</div>
+  `;
+
+  notesEl.innerHTML = `<textarea id="edit_notes" style="width:100%;min-height:80px;padding:8px;border:1px solid var(--border);border-radius:2px;background:var(--surface);font-family:inherit;font-size:13px;color:var(--ink);line-height:1.6;resize:vertical;">${data.relevant_notes||''}</textarea>`;
+
+  // Override save to read from editable fields
+  window._getEditedData = () => ({
+    hotel_name: document.getElementById('edit_hotel_name').value,
+    hotel_group: document.getElementById('edit_hotel_group').value,
+    website: document.getElementById('edit_website').value,
+    phone: document.getElementById('edit_phone').value,
+    email: document.getElementById('edit_email').value,
+    reservations_email: document.getElementById('edit_reservations_email').value,
+    concierge_email: document.getElementById('edit_concierge_email').value,
+    city: document.getElementById('edit_city').value,
+    country: document.getElementById('edit_country').value,
+    street_address: document.getElementById('edit_street_address').value,
+    zip: document.getElementById('edit_zip').value,
+    latitude: document.getElementById('edit_latitude').value,
+    longitude: document.getElementById('edit_longitude').value,
+    price_reference: document.getElementById('edit_price_reference').value,
+    affiliation: getMulti('affiliation'),
+    meal_plans: getMulti('meal_plans'),
+    facilities: getMulti('facilities'),
+    hotel_tags: getMulti('hotel_tags'),
+    relevant_notes: document.getElementById('edit_notes').value,
   });
 
-  notesEl.textContent = data.relevant_notes || '—';
+  window._getEditedTeamData = () => ({
+    status: document.getElementById('edit_status').value,
+    commission: document.getElementById('edit_commission').value,
+    inspected: document.getElementById('edit_inspected').value === 'true',
+    preferredRoom: document.getElementById('edit_preferred_room').value,
+    specialRequests: document.getElementById('edit_special_requests').value,
+  });
 }
+
 
 // ─── SAVE TO CRM ──────────────────────────────────────────────────────────────
 async function saveToCRM(data, teamData) {
@@ -965,7 +1015,10 @@ document.getElementById('btnBackStep2').addEventListener('click', () => {
 
 document.getElementById('btnSaveCRM').addEventListener('click', async () => {
   const btn = document.getElementById('btnSaveCRM');
-  const teamData = JSON.parse(btn.dataset.teamData || '{}');
+
+  // Read edited data from form
+  const data = window._getEditedData ? window._getEditedData() : researchedData;
+  const teamData = window._getEditedTeamData ? window._getEditedTeamData() : JSON.parse(btn.dataset.teamData || '{}');
   
   btn.disabled = true;
   btn.textContent = 'Saving...';
@@ -976,11 +1029,11 @@ document.getElementById('btnSaveCRM').addEventListener('click', async () => {
   setAIStatus('Saving to Zoho CRM...');
 
   try {
-    const result = await saveToCRM(researchedData, teamData);
+    const result = await saveToCRM(data, teamData);
     document.getElementById('aiStatusBox').classList.remove('visible');
 
     if (result.data?.[0]?.code === 'SUCCESS' || result.data?.[0]?.status === 'success') {
-      showSuccess('saveSuccess', `✓ Hotel "${researchedData.hotel_name}" successfully created in Zoho CRM.`);
+      showSuccess('saveSuccess', `✓ Hotel "${data.hotel_name}" successfully created in Zoho CRM.`);
       btn.textContent = '✓ Saved';
     } else {
       const msg = result.data?.[0]?.message || result.message || JSON.stringify(result);
