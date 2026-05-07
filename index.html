@@ -78,15 +78,12 @@
 
   <div class="screen active" id="screenSetup">
     <div class="setup-card">
-      <div class="setup-eyebrow">Initial Setup</div>
-      <div class="setup-title">Connect to<br>Zoho CRM</div>
-      <div class="setup-desc">Enter your Zoho EU credentials. Stored only in your browser.</div>
-      <div class="field"><label>Client ID</label><input type="text" id="clientId" autocomplete="off"></div>
-      <div class="field"><label>Client Secret</label><input type="password" id="clientSecret" autocomplete="off"></div>
-      <div class="field"><label>Grant Code <span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">(api-console.zoho.eu → Self Client → Generate Code)</span></label><input type="text" id="grantCode" autocomplete="off"></div>
+      <div class="setup-eyebrow">Jakuna Travel</div>
+      <div class="setup-title">Hotel Intelligence<br>System</div>
+      <div class="setup-desc">Enter your team password to access the hotel intake tool.</div>
+      <div class="field"><label>Password</label><input type="password" id="appPassword" autocomplete="off" placeholder="Enter team password"></div>
       <div class="alert alert-error" id="setupError"></div>
-      <div class="btn-row"><button class="btn btn-primary" id="btnConnect">Connect to Zoho</button></div>
-      <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)"><p style="font-size:11px;color:var(--muted);line-height:1.7">Scope needed: <code style="background:var(--paper);padding:2px 6px;border-radius:2px">ZohoCRM.modules.ALL,ZohoCRM.settings.ALL,ZohoCRM.bulk.ALL</code></p></div>
+      <div class="btn-row"><button class="btn btn-primary" id="btnConnect">Enter</button></div>
     </div>
   </div>
 
@@ -163,9 +160,9 @@ const OPTS={
 let tokens={};
 let existingRecord=null;
 
-function saveTokens(t){localStorage.setItem('jakuna_zoho',JSON.stringify(t));tokens=t;}
-function loadTokens(){try{tokens=JSON.parse(localStorage.getItem('jakuna_zoho')||'{}');}catch(e){tokens={};}return tokens;}
-function clearTokens(){localStorage.removeItem('jakuna_zoho');tokens={};}
+function saveTokens(t){localStorage.setItem('jakuna_tokens',JSON.stringify(t));tokens=t;}
+function loadTokens(){try{tokens=JSON.parse(localStorage.getItem('jakuna_tokens')||'{}');}catch(e){tokens={};}return tokens;}
+function clearTokens(){localStorage.removeItem('jakuna_tokens');tokens={};}
 
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
 function setStep(n){
@@ -176,16 +173,18 @@ function setAIStatus(msg){document.getElementById('aiStatusText').textContent=ms
 function showAlert(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className=`alert alert-${type} visible`;}
 function hideAlert(id){document.getElementById(id).classList.remove('visible');}
 
-async function zohoTokenCall(params){
-  const res=await fetch(`${FUNC}/zoho-token`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(params))});
+async function loginWithPassword(password){
+  const res=await fetch(`${FUNC}/zoho-token`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',password})});
   return res.json();
 }
-async function exchangeGrantCode(cid,cs,gc){return zohoTokenCall(new URLSearchParams({grant_type:'authorization_code',client_id:cid,client_secret:cs,code:gc}));}
+
 async function refreshAccessToken(){
-  const data=await zohoTokenCall(new URLSearchParams({grant_type:'refresh_token',client_id:tokens.clientId,client_secret:tokens.clientSecret,refresh_token:tokens.refreshToken}));
+  const res=await fetch(`${FUNC}/zoho-token`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',password:tokens.password})});
+  const data=await res.json();
   if(data.access_token){tokens.accessToken=data.access_token;tokens.expiresAt=Date.now()+(data.expires_in*1000);saveTokens(tokens);}
   return data;
 }
+
 async function getValidToken(){
   if(!tokens.accessToken)throw new Error('Not authenticated');
   if(Date.now()>(tokens.expiresAt-60000))await refreshAccessToken();
@@ -208,16 +207,70 @@ async function searchRecord(module,field,value){
 }
 
 async function researchHotel(hotelName,website,notes,existing){
-  const existCtx=existing?`\nEXISTING CRM DATA (enrich, do not lose):\nName: ${existing.Name}\nRelevant Notes: ${existing.Relevant_Notes||'none'}\n`:'';
-  const prompt=`You are a luxury travel research assistant for Jakuna Travel.\n\nResearch: "${hotelName}"\n${website?'Website: '+website:''}\nTeam notes: "${notes||'None'}"\n${existCtx}\nReturn ONLY valid JSON:\n{\n"hotel_name":"Full official name",\n"website":"URL",\n"phone":"with country code or null",\n"email":"or null",\n"reservations_email":"or null",\n"concierge_email":"or null",\n"street_address":"or null",\n"city":"city name",\n"zip":"or null",\n"country":"full country name",\n"latitude":"or null",\n"longitude":"or null",\n"hotel_group":"parent group name",\n"price_reference":"one of: 200 or Less,200-500,500-800,800-1200,1200-2000,+2000 — shoulder season estimate",\n"affiliation":["only from: Design Hotels,Leading Hotels of the World,Luxury Collection by Marriot,Preferred Hotels,Relais & Chateaux,Serandipians,Small Luxury Hotels of the World,Virtuoso"],\n"meal_plans":["only from: Breakfast,Half Board,Full Board,All Inclusive"],\n"facilities":["only from: Bar,Full Spa,Garden Area,Gym,Indoor Pool,Kids Club,Massage Room,Meeting Areas,Outdoor Pool,Restaurant,Sports Facilities — IMPORTANT: only include Massage Room if there is NO Full Spa"],\n"hotel_tags":["only from: Adults Only,Art,Beachfront,Beautiful Landscape,Boutique Hotel,City Hotel,Contemporary Design,Cruise (shared),Historical,Kids-Friendly,Lodge,Pet-Friendly,PVT Charter,Resort,Spa/Wellness,Traditional Luxury,Train Journeys,Winery"],\n"relevant_notes":"Merge all: existing notes + new team notes + standout features + ideal client profile. Do not discard existing notes.",\n"research_confidence":"high, medium, or low"\n}`;
+  // Build list of what's already filled in CRM
+  const filled={};
+  const missing=[];
+  if(existing){
+    const fieldMap={Website:'website',Phone_Number:'phone',Email:'email',Reservations_Email:'reservations_email',Concierge:'concierge_email',Address_1_City:'city',Address_1_Zip_Postal_Code:'zip',Address_1_Country_Region:'country',Address_1_Street_Address:'street_address',Address_1_Coordinates_Latitude:'latitude',Address_1_Coordinates_Longitude:'longitude',Price_Reference:'price_reference',Affiliation:'affiliation',Meal_Plans:'meal_plans',Facilities:'facilities',Hotel_Tags:'hotel_tags'};
+    Object.entries(fieldMap).forEach(([crmKey,jsonKey])=>{
+      const val=existing[crmKey];
+      if(val&&(Array.isArray(val)?val.length>0:val.toString().trim())){
+        filled[jsonKey]=val;
+      }else{
+        missing.push(jsonKey);
+      }
+    });
+  }
+
+  const existingNotesText=existing?.Relevant_Notes||'';
+  const missingList=existing?`\nFields already filled in CRM (keep these values exactly): ${Object.keys(filled).join(', ')}\nFields that need researching (empty in CRM): ${missing.join(', ')}`:'';
+
+  const prompt=`You are a luxury travel research assistant for Jakuna Travel.
+
+Research: "${hotelName}"
+${website?'Hotel website: '+website:''}
+Team notes: "${notes||'None'}"
+${missingList}
+${existingNotesText?`Existing Relevant Notes in CRM (keep and expand): "${existingNotesText}"`:''}
+
+Return ONLY valid JSON. For fields already filled, use the existing values provided below.
+Existing CRM values to keep: ${existing?JSON.stringify(filled):'none'}
+
+{
+"hotel_name":"${existing?.Name||'Full official name'}",
+"website":"${filled.website||'Official website URL'}",
+"phone":"${filled.phone||'phone with country code or null'}",
+"email":"${filled.email||'general email or null'}",
+"reservations_email":"${filled.reservations_email||'reservations email or null'}",
+"concierge_email":"${filled.concierge_email||'concierge email or null'}",
+"street_address":"${filled.street_address||'street address or null'}",
+"city":"${filled.city||'city name'}",
+"zip":"${filled.zip||'postal code or null'}",
+"country":"${filled.country||'full country name'}",
+"latitude":"${filled.latitude||'latitude or null'}",
+"longitude":"${filled.longitude||'longitude or null'}",
+"hotel_group":"parent hotel group name",
+"price_reference":"${filled.price_reference||'one of: 200 or Less,200-500,500-800,800-1200,1200-2000,+2000'}",
+"affiliation":${filled.affiliation?JSON.stringify(filled.affiliation):['only from: Design Hotels,Leading Hotels of the World,Luxury Collection by Marriot,Preferred Hotels,Relais & Chateaux,Serandipians,Small Luxury Hotels of the World,Virtuoso']},
+"meal_plans":${filled.meal_plans?JSON.stringify(filled.meal_plans):['only from: Breakfast,Half Board,Full Board,All Inclusive']},
+"facilities":${filled.facilities?JSON.stringify(filled.facilities):['only from: Bar,Full Spa,Garden Area,Gym,Indoor Pool,Kids Club,Massage Room,Meeting Areas,Outdoor Pool,Restaurant,Sports Facilities — only Massage Room if NO Full Spa']},
+"hotel_tags":${filled.hotel_tags?JSON.stringify(filled.hotel_tags):['only from: Adults Only,Art,Beachfront,Beautiful Landscape,Boutique Hotel,City Hotel,Contemporary Design,Cruise (shared),Historical,Kids-Friendly,Lodge,Pet-Friendly,PVT Charter,Resort,Spa/Wellness,Traditional Luxury,Train Journeys,Winery']},
+"relevant_notes":"${existingNotesText?'Start with existing notes, then add: ':''}standout features, unique selling points, ideal client profile, any team notes. Keep all existing information.",
+"research_confidence":"high, medium, or low"
+}`;
+
   const res=await fetch(`${FUNC}/claude-research`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:2000,messages:[{role:'user',content:prompt}]})});
   const data=await res.json();
   if(data.error)throw new Error(data.error.message||JSON.stringify(data.error));
   if(!data.content)throw new Error('No response: '+JSON.stringify(data));
   const text=data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+  console.log('Claude response preview:',text.substring(0,300));
   const match=text.match(/\{[\s\S]*\}/);
-  if(!match)throw new Error('Parse failed: '+text.substring(0,200));
-  return JSON.parse(match[0]);
+  if(!match)throw new Error('Parse failed: '+text.substring(0,300));
+  const result=JSON.parse(match[0]);
+  // Ensure relevant_notes is never empty
+  if(!result.relevant_notes&&existingNotesText) result.relevant_notes=existingNotesText;
+  return result;
 }
 
 function buildPreview(data,teamData){
@@ -297,22 +350,30 @@ async function buildAndSaveRecord(data,teamData,recordId){
 }
 
 document.getElementById('btnConnect').addEventListener('click',async()=>{
-  const cid=document.getElementById('clientId').value.trim();
-  const cs=document.getElementById('clientSecret').value.trim();
-  const gc=document.getElementById('grantCode').value.trim();
-  if(!cid||!cs||!gc){showAlert('setupError','Please fill all fields.','error');return;}
+  const password=document.getElementById('appPassword').value.trim();
+  if(!password){showAlert('setupError','Please enter the password.','error');return;}
   const btn=document.getElementById('btnConnect');
   btn.disabled=true;btn.textContent='Connecting...';hideAlert('setupError');
   try{
-    const r=await exchangeGrantCode(cid,cs,gc);
-    if(r.access_token&&r.refresh_token){
-      saveTokens({clientId:cid,clientSecret:cs,accessToken:r.access_token,refreshToken:r.refresh_token,expiresAt:Date.now()+(r.expires_in*1000)});
+    const r=await loginWithPassword(password);
+    if(r.access_token){
+      // First time: if refresh_token returned, save it (grant code exchange)
+      saveTokens({password,accessToken:r.access_token,refreshToken:r.refresh_token||tokens.refreshToken,expiresAt:Date.now()+(r.expires_in*1000)});
+      if(r.refresh_token&&r.note){
+        console.log('IMPORTANT - Save this as ZOHO_REFRESH_TOKEN in Netlify:',r.refresh_token);
+      }
       document.getElementById('crmDot').classList.add('connected');
       document.getElementById('crmStatus').textContent='CRM Connected';
       showScreen('screenIntake');setStep(1);
-    }else{showAlert('setupError','Auth failed: '+(r.error||r.message||JSON.stringify(r)),'error');btn.disabled=false;btn.textContent='Connect to Zoho';}
-  }catch(e){showAlert('setupError','Error: '+e.message,'error');btn.disabled=false;btn.textContent='Connect to Zoho';}
+    }else{
+      showAlert('setupError',r.error==='Invalid password'?'Incorrect password. Please try again.':'Connection failed: '+(r.error||JSON.stringify(r)),'error');
+      btn.disabled=false;btn.textContent='Enter';
+    }
+  }catch(e){showAlert('setupError','Error: '+e.message,'error');btn.disabled=false;btn.textContent='Enter';}
 });
+
+// Allow Enter key on password field
+document.getElementById('appPassword').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('btnConnect').click();});
 
 document.getElementById('btnToStep2').addEventListener('click',()=>{if(!document.getElementById('hotelName').value.trim()){alert('Please enter a hotel name.');return;}setStep(2);});
 document.getElementById('btnBackStep1').addEventListener('click',()=>setStep(1));
@@ -388,11 +449,11 @@ document.getElementById('btnStartOver').addEventListener('click',()=>{
 });
 
 document.getElementById('btnSettings').addEventListener('click',()=>{
-  if(confirm('Disconnect from Zoho CRM?')){
+  if(confirm('Log out?')){
     clearTokens();
     document.getElementById('crmDot').classList.remove('connected');
     document.getElementById('crmStatus').textContent='Not connected';
-    ['clientId','clientSecret','grantCode'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('appPassword').value='';
     showScreen('screenSetup');
   }
 });
@@ -498,7 +559,11 @@ document.getElementById('hotelName').addEventListener('blur',()=>{
 
 (function init(){
   const t=loadTokens();
-  if(t.refreshToken){document.getElementById('crmDot').classList.add('connected');document.getElementById('crmStatus').textContent='CRM Connected';showScreen('screenIntake');setStep(1);}
+  if(t.password&&t.accessToken){
+    document.getElementById('crmDot').classList.add('connected');
+    document.getElementById('crmStatus').textContent='CRM Connected';
+    showScreen('screenIntake');setStep(1);
+  }
 })();
 </script>
 </body>
