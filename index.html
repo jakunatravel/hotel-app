@@ -374,7 +374,8 @@ async function buildAndSaveRecord(data,teamData,recordId){
     }
   }
 
-  const notes_value = data.relevant_notes ? data.relevant_notes.trim() : '';
+  // Zoho Rich-Text fields require HTML formatting
+  const notes_value = data.relevant_notes ? `<p>${data.relevant_notes.trim().replace(/\n/g,'</p><p>')}</p>` : '';
   console.log('Saving Relevant_Notes, length:', notes_value.length, 'preview:', notes_value.substring(0,100));
 
   const record={};
