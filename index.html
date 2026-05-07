@@ -146,7 +146,7 @@
 
 <script>
 const ZOHO_BASE='https://accounts.zoho.eu';
-const CRM_BASE='https://www.zohoapis.eu/crm/v6';
+const CRM_BASE='https://www.zohoapis.eu/crm/v2';
 const FUNC='https://hotels.jakunatravel.com/.netlify/functions';
 const MODULE={Hotels:'Hotels',Cities:'Cities_Regions',Countries:'Countries'};
 const OPTS={
@@ -359,9 +359,7 @@ async function buildAndSaveRecord(data,teamData,recordId){
     }
   }
 
-  // Zoho v6 supports Rich Text fields — wrap in HTML paragraph tags
-  const notes_value = data.relevant_notes ? `<p>${data.relevant_notes.trim().replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>')}</p>` : '';
-  console.log('Saving Relevant_Notes length:', notes_value.length);
+  // Relevant Notes excluded — add manually in Zoho (Rich Text requires different API)
 
   const record={};
   const fields={
@@ -388,8 +386,6 @@ async function buildAndSaveRecord(data,teamData,recordId){
     Preferred_Room_Category:teamData.preferredRoom,
     Special_Requests:teamData.specialRequests
   };
-  // Add Relevant_Notes separately — never skip it if it has content
-  if(notes_value) fields.Relevant_Notes = notes_value;
 
   Object.entries(fields).forEach(([k,v])=>{
     if(v===null||v===undefined||v==='')return;
@@ -400,11 +396,8 @@ async function buildAndSaveRecord(data,teamData,recordId){
   if(countryId)record.Countries=[{id:countryId}];
 
   setAIStatus(recordId?'Updating in Zoho CRM...':'Creating in Zoho CRM...');
-  console.log('Save called. recordId:', recordId, 'type:', typeof recordId);
-  console.log('existingRecord:', JSON.stringify(existingRecord?.id), existingRecord?.Name);
   if(recordId){
-    record.id = String(recordId);
-    return crmCall(`/${MODULE.Hotels}/${String(recordId)}`,'PUT',{data:[record]});
+    return crmCall(`/${MODULE.Hotels}/${recordId}`,'PUT',{data:[record]});
   } else {
     return crmCall(`/${MODULE.Hotels}`,'POST',{data:[record]});
   }
