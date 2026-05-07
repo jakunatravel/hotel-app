@@ -359,9 +359,6 @@ async function buildAndSaveRecord(data,teamData,recordId){
     }
   }
 
-    }
-  }
-
   // Zoho v6 supports Rich Text fields — wrap in HTML paragraph tags
   const notes_value = data.relevant_notes ? `<p>${data.relevant_notes.trim().replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>')}</p>` : '';
   console.log('Saving Relevant_Notes length:', notes_value.length);
@@ -480,7 +477,6 @@ document.getElementById('btnResearch').addEventListener('click',async()=>{
       });
       // Hotel name always from CRM
       merged.hotel_name=existingRecord.Name||researched.hotel_name;
-      }
       // Relevant notes: use researched (which already merges existing+new)
       // but fallback to CRM notes if researched returned empty
       if(!merged.relevant_notes&&existingRecord.Relevant_Notes){
