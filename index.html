@@ -250,7 +250,13 @@ function buildPreview(data,teamData){
     <div style="grid-column:1/-1"><div class="preview-label">Facilities</div>${pills('facilities',data.facilities,OPTS.facilities)}</div>
     <div style="grid-column:1/-1"><div class="preview-label">Hotel Tags</div>${pills('hotel_tags',data.hotel_tags,OPTS.hotelTags)}</div>
   `;
-  document.getElementById('previewNotes').innerHTML=`<textarea id="e_notes" style="width:100%;min-height:120px;padding:10px;border:1px solid var(--border);border-radius:2px;background:var(--surface);font-family:inherit;font-size:13px;color:var(--ink);line-height:1.7;resize:vertical;">${(data.relevant_notes||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>`;
+  const notesEl=document.getElementById('previewNotes');
+  const ta=document.createElement('textarea');
+  ta.id='e_notes';
+  ta.style.cssText='width:100%;min-height:120px;padding:10px;border:1px solid var(--border);border-radius:2px;background:var(--surface);font-family:inherit;font-size:13px;color:var(--ink);line-height:1.7;resize:vertical;';
+  ta.value=data.relevant_notes||'';
+  notesEl.innerHTML='';
+  notesEl.appendChild(ta);
 }
 
 function getMulti(id){return Array.from(document.querySelectorAll(`#e_${id} input:checked`)).map(c=>c.value);}
@@ -444,11 +450,34 @@ function showSuggestions(query){
   `).join('');
 }
 
-function selectExistingHotel(id,name,el){
+async function selectExistingHotel(id,name,el){
   document.getElementById('hotelName').value=name;
   document.getElementById('hotelSuggestions').style.display='none';
-  document.getElementById('hotelSearchStatus').innerHTML=`<span style="color:var(--success)">✓ Will update existing record: <strong>${name}</strong></span>`;
-  existingRecord={id,Name:name};
+  document.getElementById('hotelSearchStatus').innerHTML=`<span style="color:var(--muted)">Loading existing record...</span>`;
+  
+  try{
+    // Fetch full record from CRM
+    const result=await crmCall('/Hotels/'+id);
+    if(result.data&&result.data[0]){
+      existingRecord=result.data[0];
+      const r=existingRecord;
+      
+      // Pre-fill Step 2 from existing CRM data
+      if(r.Status) document.getElementById('hotelStatus').value=r.Status;
+      if(r.Inspected) document.getElementById('inspected').checked=r.Inspected;
+      if(r.Commission) document.getElementById('commission').value=r.Commission;
+      if(r.Preferred_Room_Category) document.getElementById('preferredRoom').value=r.Preferred_Room_Category;
+      if(r.Special_Requests) document.getElementById('specialRequests').value=r.Special_Requests;
+      
+      document.getElementById('hotelSearchStatus').innerHTML=`<span style="color:var(--success)">✓ Found: <strong>${name}</strong> — Step 2 pre-filled from CRM</span>`;
+    } else {
+      existingRecord={id,Name:name};
+      document.getElementById('hotelSearchStatus').innerHTML=`<span style="color:var(--success)">✓ Will update existing record: <strong>${name}</strong></span>`;
+    }
+  }catch(e){
+    existingRecord={id,Name:name};
+    document.getElementById('hotelSearchStatus').innerHTML=`<span style="color:var(--success)">✓ Will update existing record: <strong>${name}</strong></span>`;
+  }
 }
 
 document.getElementById('hotelName').addEventListener('input',function(){
