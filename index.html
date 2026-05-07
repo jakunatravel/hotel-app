@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jakuna Travel — Hotel Intake</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1612;
+    --paper: #f5f0e8;
+    --gold: #c9a84c;
+    --gold-light: #e8d5a3;
+    --muted: #8a7f72;
+    --border: #ddd5c4;
+    --white: #ffffff;
+    --success: #4a7c59;
+    --error: #8b3a3a;
+    --surface: #faf7f2;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  /* Header */
+  .header {
+    background: var(--ink);
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #333;
+  }
+  .header-brand {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--gold);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  .header-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .connection-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #555;
+  }
+  .dot.connected { background: var(--success); box-shadow: 0 0 6px rgba(74,124,89,0.6); }
+
+  /* Main layout */
+  .main { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* Screens */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* Setup screen */
+  .setup-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 48px;
+    max-width: 560px;
+    margin: 60px auto 0;
+  }
+  .setup-eyebrow {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 12px;
+  }
+  .setup-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px;
+    font-weight: 300;
+    color: var(--ink);
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+  .setup-desc {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 36px;
+    padding-bottom: 36px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Form elements */
+  .field { margin-bottom: 20px; }
+  .field label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .field input, .field textarea, .field select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: var(--surface);
+    color: var(--ink);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    border-color: var(--gold);
+    background: var(--white);
+  }
+  .field textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+  .field input[type="checkbox"] {
+    width: auto; margin-right: 8px; accent-color: var(--gold);
+  }
+  .check-row { display: flex; align-items: center; }
+  .check-row label { margin-bottom: 0; text-transform: none; font-size: 13px; letter-spacing: 0; color: var(--ink); }
+
+  /* Buttons */
+  .btn {
+    padding: 11px 28px;
+    border: none;
+    border-radius: 2px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: var(--ink);
+    color: var(--gold);
+  }
+  .btn-primary:hover { background: #2d2720; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-success {
+    background: var(--success);
+    color: var(--white);
+  }
+  .btn-row { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+
+  /* Intake screen */
+  .page-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 38px;
+    font-weight: 300;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .page-sub { color: var(--muted); font-size: 13px; margin-bottom: 40px; }
+
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 32px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Progress steps */
+  .steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 36px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+  .step-num {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--border);
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .step.active .step-num { background: var(--gold); color: var(--ink); }
+  .step.done .step-num { background: var(--success); color: var(--white); }
+  .step-label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+  .step.active .step-label { color: var(--ink); font-weight: 500; }
+  .step-line { width: 32px; height: 1px; background: var(--border); flex-shrink: 0; margin: 0 4px; }
+
+  /* AI status */
+  .ai-status {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    background: var(--ink);
+    color: var(--gold-light);
+    border-radius: 2px;
+    margin-bottom: 20px;
+    font-size: 13px;
+  }
+  .ai-status.visible { display: flex; }
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(201,168,76,0.3);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Preview card */
+  .preview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 24px;
+  }
+  .preview-item { }
+  .preview-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .preview-value {
+    font-size: 13px;
+    color: var(--ink);
+    line-height: 1.4;
+  }
+  .preview-value.empty { color: var(--muted); font-style: italic; }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 11px;
+    margin: 2px 2px 2px 0;
+    color: var(--ink);
+  }
+
+  /* Alert */
+  .alert {
+    padding: 12px 16px;
+    border-radius: 2px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .alert.visible { display: block; }
+  .alert-error { background: #f9eded; border: 1px solid #d4a0a0; color: var(--error); }
+  .alert-success { background: #edf5f0; border: 1px solid #a0c4b0; color: var(--success); }
+
+  /* Commission field row */
+  .commission-row { display: flex; align-items: center; gap: 12px; }
+  .commission-row input { max-width: 120px; }
+  .commission-row span { color: var(--muted); font-size: 13px; }
+
+  /* Multiselect pills display */
+  .pills-preview { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+
+  @media (max-width: 600px) {
+    .header { padding: 16px 20px; }
+    .main { padding: 24px 16px 60px; }
+    .setup-card { padding: 28px 20px; margin-top: 32px; }
+    .preview-grid { grid-template-columns: 1fr; }
+    .card { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-brand">Jakuna Travel</div>
+    <div class="header-sub">Hotel Intelligence System</div>
+  </div>
+  <div class="connection-badge">
+    <div class="dot" id="crmDot"></div>
+    <span id="crmStatus">Not connected</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- SCREEN 1: SETUP -->
+  <div class="screen active" id="screenSetup">
+    <div class="setup-card">
+      <div class="setup-eyebrow">Initial Setup</div>
+      <div class="setup-title">Connect to<br>Zoho CRM</div>
+      <div class="setup-desc">Enter your Zoho EU credentials below. These are stored only in your browser and never sent anywhere except directly to Zoho's servers.</div>
+
+      <div class="field">
+        <label>Client ID</label>
+        <input type="text" id="clientId" placeholder="1000.XXXX..." autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Client Secret</label>
+        <input type="password" id="clientSecret" placeholder="ac7a7c72e..." autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Grant Code <span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">(generate fresh from Zoho API Console → Self Client → Generate Code)</span></label>
+        <input type="text" id="grantCode" placeholder="1000.abc123..." autocomplete="off">
+      </div>
+
+      <div class="alert alert-error" id="setupError"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btnConnect">Connect to Zoho</button>
+      </div>
+
+      <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
+        <p style="font-size:11px;color:var(--muted);line-height:1.7">
+          Scope needed when generating code:<br>
+          <code style="background:var(--paper);padding:2px 6px;border-radius:2px;font-size:11px">ZohoCRM.modules.ALL,ZohoCRM.settings.ALL,ZohoCRM.bulk.ALL</code>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: INTAKE FORM -->
+  <div class="screen" id="screenIntake">
+
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+      <div>
+        <div class="page-title">Add Hotel</div>
+        <div class="page-sub">Enter a hotel name and any notes — Claude will research and fill the rest.</div>
+      </div>
+      <button class="btn btn-ghost" id="btnSettings" style="margin-top:8px">⚙ Settings</button>
+    </div>
+
+    <div class="steps">
+      <div class="step active" id="step1">
+        <div class="step-num">1</div>
+        <div class="step-label">Hotel Input</div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step" id="step2">
+        <div class="step-num">2</div>
+        <div class="step-label">Team Details</div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step" id="step3">
+        <div class="step-num">3</div>
+        <div class="step-label">AI Research</div>
+      </div>
+      <div class="step-line"></div>
+      <div class="step" id="step4">
+        <div class="step-num">4</div>
+        <div class="step-label">Review & Save</div>
+      </div>
+    </div>
+
+    <!-- Step 1: Hotel Input -->
+    <div id="formStep1">
+      <div class="card">
+        <div class="card-title">Hotel Information</div>
+        <div class="field">
+          <label>Hotel Name *</label>
+          <input type="text" id="hotelName" placeholder="e.g. Four Seasons Hotel George V Paris">
+        </div>
+        <div class="field">
+          <label>Notes <span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">— paste anything you know: room types, highlights, client feedback, context</span></label>
+          <textarea id="hotelNotes" placeholder="e.g. Exceptional service, preferred suite is the Royal Suite on 6th floor, great for honeymoons, close to Champs-Élysées..."></textarea>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btnToStep2">Continue</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Team Details -->
+    <div id="formStep2" style="display:none">
+      <div class="card">
+        <div class="card-title">Your Assessment</div>
+
+        <div class="field">
+          <div class="check-row">
+            <input type="checkbox" id="inspected">
+            <label for="inspected">I have personally inspected this hotel</label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Status *</label>
+          <select id="hotelStatus">
+            <option value="">— Select status —</option>
+            <option>Vetted and approved</option>
+            <option>Non vetted but good to use</option>
+            <option>Use only for specific requests</option>
+            <option>DO NOT USE</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Preferred Room Category <span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">optional</span></label>
+          <input type="text" id="preferredRoom" placeholder="e.g. Deluxe Park View, Junior Suite...">
+        </div>
+
+        <div class="field">
+          <label>Special Requests <span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">optional</span></label>
+          <input type="text" id="specialRequests" placeholder="e.g. Always request high floor, mention Jakuna partnership...">
+        </div>
+
+        <div class="field">
+          <label>Commission</label>
+          <div class="commission-row">
+            <input type="number" id="commission" value="10" min="0" max="100" step="0.5">
+            <span>% — change if different from standard 10%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="btnBackStep1">← Back</button>
+        <button class="btn btn-primary" id="btnResearch">Research with Claude →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: AI Research -->
+    <div id="formStep3" style="display:none">
+      <div class="ai-status visible" id="aiStatusBox">
+        <div class="spinner"></div>
+        <span id="aiStatusText">Researching hotel...</span>
+      </div>
+      <div class="card" id="researchLog" style="display:none">
+        <div class="card-title">Research Log</div>
+        <div id="researchLogContent" style="font-size:13px;color:var(--muted);line-height:1.8"></div>
+      </div>
+    </div>
+
+    <!-- Step 4: Review & Confirm -->
+    <div id="formStep4" style="display:none">
+      <div class="alert alert-error" id="saveError"></div>
+      <div class="alert alert-success" id="saveSuccess"></div>
+
+      <div class="card">
+        <div class="card-title">Review Before Saving to CRM</div>
+        <div class="preview-grid" id="previewGrid"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">AI Notes</div>
+        <div id="previewNotes" style="font-size:13px;color:var(--muted);line-height:1.7"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="btnBackStep2">← Start Over</button>
+        <button class="btn btn-success" id="btnSaveCRM">Save to Zoho CRM</button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const ZOHO_BASE = 'https://accounts.zoho.eu';
+const CRM_BASE  = 'https://www.zohoapis.eu/crm/v2';
+const CLAUDE_API = 'https://api.anthropic.com/v1/messages';
+
+// ─── DROPDOWN OPTIONS ─────────────────────────────────────────────────────────
+const OPTIONS = {
+  status: ['Vetted and approved','Non vetted but good to use','Use only for specific requests','DO NOT USE'],
+  affiliation: ['Design Hotels','Leading Hotels of the World','Luxury Collection by Marriot','Preferred Hotels','Relais & Chateaux','Serandipians','Small Luxury Hotels of the World','Virtuoso'],
+  mealPlans: ['Breakfast','Half Board','Full Board','All Inclusive'],
+  facilities: ['Bar','Full Spa','Garden Area','Gym','Indoor Pool','Kids Club','Massage Room','Meeting Areas','Outdoor Pool','Restaurant','Sports Facilities'],
+  hotelTags: ['Adults Only','Art','Beachfront','Beautiful Landscape','Boutique Hotel','City Hotel','Contemporary Design','Cruise (shared)','Historical','Kids-Friendly','Lodge','Pet-Friendly','PVT Charter','Resort','Spa/Wellness','Traditional Luxury','Train Journeys','Winery'],
+  priceReference: ['200 or Less','200-500','500-800','800-1200','1200-2000','+2000']
+};
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let tokens = {};
+let researchedData = {};
+
+// ─── STORAGE ──────────────────────────────────────────────────────────────────
+function saveTokens(t) {
+  localStorage.setItem('jakuna_zoho_tokens', JSON.stringify(t));
+  tokens = t;
+}
+function loadTokens() {
+  try { tokens = JSON.parse(localStorage.getItem('jakuna_zoho_tokens') || '{}'); } catch(e) { tokens = {}; }
+  return tokens;
+}
+function clearTokens() {
+  localStorage.removeItem('jakuna_zoho_tokens');
+  tokens = {};
+}
+
+// ─── UI HELPERS ───────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function setStep(n) {
+  [1,2,3,4].forEach(i => {
+    const el = document.getElementById('step'+i);
+    el.classList.remove('active','done');
+    if (i < n) el.classList.add('done');
+    if (i === n) el.classList.add('active');
+  });
+  ['formStep1','formStep2','formStep3','formStep4'].forEach((id,i) => {
+    document.getElementById(id).style.display = (i+1 === n) ? 'block' : 'none';
+  });
+}
+function setAIStatus(msg) {
+  document.getElementById('aiStatusText').textContent = msg;
+}
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('visible');
+  el.className = el.className.replace('alert-success','alert-error') + ' visible';
+}
+function showSuccess(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('visible');
+  el.className = el.className.replace('alert-error','alert-success') + ' visible';
+}
+function hideAlert(id) {
+  document.getElementById(id).classList.remove('visible');
+}
+
+// ─── ZOHO AUTH ────────────────────────────────────────────────────────────────
+const FUNCTION_BASE = 'https://hotels.jakunatravel.com';
+
+async function zohoTokenCall(params) {
+  const res = await fetch(`${FUNCTION_BASE}/.netlify/functions/zoho-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.fromEntries(params))
+  });
+  return res.json();
+}
+
+async function exchangeGrantCode(clientId, clientSecret, grantCode) {
+  const params = new URLSearchParams({
+    grant_type: 'authorization_code',
+    client_id: clientId,
+    client_secret: clientSecret,
+    code: grantCode
+  });
+  return zohoTokenCall(params);
+}
+
+async function refreshAccessToken() {
+  const params = new URLSearchParams({
+    grant_type: 'refresh_token',
+    client_id: tokens.clientId,
+    client_secret: tokens.clientSecret,
+    refresh_token: tokens.refreshToken
+  });
+  const data = await zohoTokenCall(params);
+  if (data.access_token) {
+    tokens.accessToken = data.access_token;
+    tokens.expiresAt = Date.now() + (data.expires_in * 1000);
+    saveTokens(tokens);
+  }
+  return data;
+}
+
+async function getValidToken() {
+  if (!tokens.accessToken) throw new Error('Not authenticated');
+  if (Date.now() > (tokens.expiresAt - 60000)) {
+    await refreshAccessToken();
+  }
+  return tokens.accessToken;
+}
+
+// ─── ZOHO CRM CALLS ───────────────────────────────────────────────────────────
+async function crmGet(endpoint) {
+  const token = await getValidToken();
+  const res = await fetch(`${CRM_BASE}${endpoint}`, {
+    headers: { 'Authorization': `Zoho-oauthtoken ${token}` }
+  });
+  return res.json();
+}
+
+async function crmPost(endpoint, data) {
+  const token = await getValidToken();
+  const res = await fetch(`${CRM_BASE}${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Zoho-oauthtoken ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  });
+  return res.json();
+}
+
+// ─── MODULE NAME MAP ──────────────────────────────────────────────────────────
+// Zoho uses CustomModuleN as the API endpoint for custom modules
+const MODULE = {
+  Hotels:        'CustomModule3',
+  Cities_Regions:'CustomModule2',
+  Countries:     'CustomModule1',
+  Hotel_Groups:  'CustomModule3'  // Hotel Groups live in the same Hotels module as CAPS records
+};
+
+async function searchRecord(module, field, value) {
+  try {
+    const data = await crmGet(`/${module}/search?criteria=(${field}:equals:${encodeURIComponent(value)})`);
+    return data.data ? data.data[0] : null;
+  } catch(e) { return null; }
+}
+
+async function getOrCreateCityRegion(cityName, countryId) {
+  // Try to find existing
+  let record = await searchRecord(MODULE.Cities_Regions, 'Name', cityName);
+  if (record) return record.id;
+  // Create new — link to country if we have the ID
+  const newRecord = { Name: cityName };
+  if (countryId) newRecord.Countries = [{ id: countryId }];
+  const payload = { data: [newRecord] };
+  const result = await crmPost(`/${MODULE.Cities_Regions}`, payload);
+  return result.data?.[0]?.details?.id || null;
+}
+
+// ─── CLAUDE RESEARCH ──────────────────────────────────────────────────────────
+async function researchHotel(hotelName, notes) {
+  const prompt = `You are a luxury travel research assistant for Jakuna Travel, a US-based luxury private tour operator.
+
+Research the hotel: "${hotelName}"
+Additional notes from our team: "${notes || 'None'}"
+
+Return ONLY a valid JSON object with these exact fields. Do not include any other text, markdown, or explanation:
+
+{
+  "hotel_name": "Full official hotel name",
+  "website": "Official website URL",
+  "phone": "Main phone number with country code",
+  "email": "General hotel email if publicly available, else null",
+  "reservations_email": "Reservations email if publicly available, else null",
+  "concierge_email": "Concierge email if publicly available, else null",
+  "street_address": "Street address if easily found, else null",
+  "city": "City name",
+  "state_province": null,
+  "zip": "Postal/zip code if easily found, else null",
+  "country": "Full country name",
+  "latitude": "Latitude as string",
+  "longitude": "Longitude as string",
+  "hotel_group": "Parent hotel group name (e.g. Four Seasons, Aman, Marriott)",
+  "price_reference": "One of: 200 or Less, 200-500, 500-800, 800-1200, 1200-2000, +2000 — estimate based on average nightly rate during shoulder season (typically spring) for this country/city. Four Seasons and ultra-luxury are typically 800-1200 or higher.",
+  "affiliation": ["array of applicable options from: Design Hotels, Leading Hotels of the World, Luxury Collection by Marriot, Preferred Hotels, Relais & Chateaux, Serandipians, Small Luxury Hotels of the World, Virtuoso — only include ones that actually apply"],
+  "meal_plans": ["array of applicable options from: Breakfast, Half Board, Full Board, All Inclusive"],
+  "facilities": ["array of applicable options from: Bar, Full Spa, Garden Area, Gym, Indoor Pool, Kids Club, Massage Room, Meeting Areas, Outdoor Pool, Restaurant, Sports Facilities"],
+  "hotel_tags": ["array of applicable options from: Adults Only, Art, Beachfront, Beautiful Landscape, Boutique Hotel, City Hotel, Contemporary Design, Cruise (shared), Historical, Kids-Friendly, Lodge, Pet-Friendly, PVT Charter, Resort, Spa/Wellness, Traditional Luxury, Train Journeys, Winery"],
+  "relevant_notes": "A concise paragraph with notable highlights, unique selling points, and any information from the team notes that doesn't fit other fields. Include standout features, ideal client profile, and anything a luxury travel advisor should know.",
+  "research_confidence": "high, medium, or low",
+  "research_notes": "Brief note on data sources or any uncertainties"
+}`;
+
+  const res = await fetch(`${FUNCTION_BASE}/.netlify/functions/claude-research`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  const data = await res.json();
+
+  // Handle API errors
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+  if (!data.content) throw new Error('No content in response: ' + JSON.stringify(data));
+
+  // Extract text from response
+  const textBlocks = data.content?.filter(b => b.type === 'text') || [];
+  const fullText = textBlocks.map(b => b.text).join('');
+
+  if (!fullText) throw new Error('Empty response from Claude');
+
+  // Try to parse JSON - handle various formats
+  try {
+    // First try direct parse
+    return JSON.parse(fullText);
+  } catch(e) {
+    // Try extracting JSON block
+    const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON found in: ' + fullText.substring(0, 200));
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch(e2) {
+      throw new Error('JSON parse failed: ' + fullText.substring(0, 200));
+    }
+  }
+}
+
+// ─── BUILD PREVIEW ────────────────────────────────────────────────────────────
+function buildPreview(data, teamData) {
+  const grid = document.getElementById('previewGrid');
+  const notesEl = document.getElementById('previewNotes');
+  
+  const fields = [
+    { label: 'Hotel Name', value: data.hotel_name },
+    { label: 'Hotel Group', value: data.hotel_group },
+    { label: 'Website', value: data.website },
+    { label: 'Phone', value: data.phone },
+    { label: 'Email', value: data.email },
+    { label: 'Reservations Email', value: data.reservations_email },
+    { label: 'Concierge Email', value: data.concierge_email },
+    { label: 'Address', value: [data.street_address, data.city, data.state_province, data.zip, data.country].filter(Boolean).join(', ') },
+    { label: 'Lat / Long', value: data.latitude && data.longitude ? `${data.latitude}, ${data.longitude}` : null },
+    { label: 'Price Reference', value: data.price_reference },
+    { label: 'Status', value: teamData.status },
+    { label: 'Commission', value: teamData.commission + '%' },
+    { label: 'Inspected', value: teamData.inspected ? 'Yes' : 'No' },
+    { label: 'Preferred Room', value: teamData.preferredRoom },
+    { label: 'Special Requests', value: teamData.specialRequests },
+  ];
+
+  grid.innerHTML = fields.map(f => `
+    <div class="preview-item">
+      <div class="preview-label">${f.label}</div>
+      <div class="preview-value ${!f.value ? 'empty' : ''}">${f.value || '—'}</div>
+    </div>
+  `).join('');
+
+  // Multi-select fields
+  const multiFields = [
+    { label: 'Affiliation', values: data.affiliation },
+    { label: 'Meal Plans', values: data.meal_plans },
+    { label: 'Facilities', values: data.facilities },
+    { label: 'Hotel Tags', values: data.hotel_tags },
+  ];
+  multiFields.forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'preview-item';
+    div.style.gridColumn = '1 / -1';
+    div.innerHTML = `
+      <div class="preview-label">${f.label}</div>
+      <div class="pills-preview">${(f.values||[]).map(v => `<span class="tag">${v}</span>`).join('') || '<span style="color:var(--muted);font-style:italic;font-size:13px">—</span>'}</div>
+    `;
+    grid.appendChild(div);
+  });
+
+  notesEl.textContent = data.relevant_notes || '—';
+}
+
+// ─── SAVE TO CRM ──────────────────────────────────────────────────────────────
+async function saveToCRM(data, teamData) {
+  setAIStatus('Looking up Country in CRM...');
+
+  // 1. Find country record
+  const countryRecord = await searchRecord(MODULE.Countries, 'Name', data.country);
+  const countryId = countryRecord?.id || null;
+
+  // 2. Find or create City/Region
+  setAIStatus('Checking City/Region...');
+  let cityId = null;
+  if (data.city) {
+    cityId = await getOrCreateCityRegion(data.city, countryId);
+  }
+
+  // 3. Find Hotel Group — stored as ALL-CAPS record in Hotels module
+  setAIStatus('Looking up Hotel Group...');
+  const groupName = data.hotel_group ? data.hotel_group.toUpperCase() : null;
+  const groupRecord = groupName ? await searchRecord(MODULE.Hotel_Groups, 'Name', groupName) : null;
+  const groupId = groupRecord?.id || null;
+
+  // 4. Build record payload using exact Zoho API field names
+  const record = {
+    Name:                           data.hotel_name,
+    Website:                        data.website,
+    Phone_Number:                   data.phone,
+    Email:                          data.email,
+    Reservations_Email:             data.reservations_email,
+    Concierge:                      data.concierge_email,
+    Address_1_Street_Address:       data.street_address,
+    Address_1_City:                 data.city,
+    Address_1_Zip_Postal_Code:      data.zip,
+    Address_1_Country_Region:       data.country,
+    Address_1_Coordinates_Latitude: data.latitude ? parseFloat(data.latitude) : null,
+    Address_1_Coordinates_Longitude:data.longitude ? parseFloat(data.longitude) : null,
+    Price_Reference:                data.price_reference,
+    Affiliation:                    data.affiliation,
+    Meal_Plans:                     data.meal_plans,
+    Facilities:                     data.facilities,
+    Hotel_Tags:                     data.hotel_tags,
+    Relevant_Notes:                 data.relevant_notes,
+    Status:                         teamData.status,
+    Commission:                     parseFloat(teamData.commission),
+    Inspected:                      teamData.inspected,
+    Preferred_Room_Category:        teamData.preferredRoom,
+    Special_Requests:               teamData.specialRequests,
+  };
+
+  if (groupId) record.Hotel_Group = { id: groupId };
+  if (cityId) record.City_Region = { id: cityId };
+  if (countryId) record.Countries = [{ id: countryId }];
+
+  // Remove null/empty
+  Object.keys(record).forEach(k => {
+    if (record[k] === null || record[k] === '' || record[k] === undefined) delete record[k];
+    if (Array.isArray(record[k]) && record[k].length === 0) delete record[k];
+  });
+
+  setAIStatus('Creating record in Zoho CRM...');
+  const result = await crmPost(`/${MODULE.Hotels}`, { data: [record] });
+  return result;
+}
+
+// ─── CONNECT BUTTON ───────────────────────────────────────────────────────────
+document.getElementById('btnConnect').addEventListener('click', async () => {
+  const clientId = document.getElementById('clientId').value.trim();
+  const clientSecret = document.getElementById('clientSecret').value.trim();
+  const grantCode = document.getElementById('grantCode').value.trim();
+
+  if (!clientId || !clientSecret || !grantCode) {
+    showError('setupError', 'Please fill in all three fields.');
+    return;
+  }
+
+  const btn = document.getElementById('btnConnect');
+  btn.disabled = true;
+  btn.textContent = 'Connecting...';
+  hideAlert('setupError');
+
+  try {
+    const result = await exchangeGrantCode(clientId, clientSecret, grantCode);
+    if (result.access_token && result.refresh_token) {
+      saveTokens({
+        clientId,
+        clientSecret,
+        accessToken: result.access_token,
+        refreshToken: result.refresh_token,
+        expiresAt: Date.now() + (result.expires_in * 1000)
+      });
+      document.getElementById('crmDot').classList.add('connected');
+      document.getElementById('crmStatus').textContent = 'CRM Connected';
+      showScreen('screenIntake');
+      setStep(1);
+    } else {
+      showError('setupError', `Authentication failed: ${result.error || result.message || JSON.stringify(result)}`);
+      btn.disabled = false;
+      btn.textContent = 'Connect to Zoho';
+    }
+  } catch(e) {
+    showError('setupError', 'Connection error: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Connect to Zoho';
+  }
+});
+
+// ─── STEP NAVIGATION ──────────────────────────────────────────────────────────
+document.getElementById('btnToStep2').addEventListener('click', () => {
+  const name = document.getElementById('hotelName').value.trim();
+  if (!name) { alert('Please enter a hotel name.'); return; }
+  setStep(2);
+});
+
+document.getElementById('btnBackStep1').addEventListener('click', () => setStep(1));
+
+document.getElementById('btnResearch').addEventListener('click', async () => {
+  const status = document.getElementById('hotelStatus').value;
+  if (!status) { alert('Please select a status.'); return; }
+
+  const teamData = {
+    inspected: document.getElementById('inspected').checked,
+    status,
+    preferredRoom: document.getElementById('preferredRoom').value.trim(),
+    specialRequests: document.getElementById('specialRequests').value.trim(),
+    commission: document.getElementById('commission').value || '10'
+  };
+
+  const hotelName = document.getElementById('hotelName').value.trim();
+  const notes = document.getElementById('hotelNotes').value.trim();
+
+  setStep(3);
+  document.getElementById('aiStatusBox').classList.add('visible');
+
+  try {
+    setAIStatus(`Researching ${hotelName}...`);
+    const data = await researchHotel(hotelName, notes);
+    researchedData = data;
+
+    // Show log
+    const log = document.getElementById('researchLog');
+    const logContent = document.getElementById('researchLogContent');
+    log.style.display = 'block';
+    logContent.innerHTML = `
+      ✓ Hotel identified: <strong>${data.hotel_name}</strong><br>
+      ✓ Location: ${data.city}, ${data.country}<br>
+      ✓ Price reference estimated: <strong>${data.price_reference}</strong><br>
+      ✓ Facilities found: ${(data.facilities||[]).length}<br>
+      ✓ Tags assigned: ${(data.hotel_tags||[]).length}<br>
+      ✓ Affiliations: ${(data.affiliation||[]).length}<br>
+      ℹ Confidence: <strong>${data.research_confidence}</strong><br>
+      ${data.research_notes ? `ℹ ${data.research_notes}` : ''}
+    `;
+
+    setAIStatus('Research complete — building preview...');
+    setTimeout(() => {
+      document.getElementById('aiStatusBox').classList.remove('visible');
+      setStep(4);
+      buildPreview(data, teamData);
+      // Store team data for save step
+      document.getElementById('btnSaveCRM').dataset.teamData = JSON.stringify(teamData);
+    }, 800);
+
+  } catch(e) {
+    document.getElementById('aiStatusBox').classList.remove('visible');
+    showError('saveError', 'Research failed: ' + e.message);
+    setStep(4);
+  }
+});
+
+document.getElementById('btnBackStep2').addEventListener('click', () => {
+  setStep(1);
+  document.getElementById('hotelName').value = '';
+  document.getElementById('hotelNotes').value = '';
+  researchedData = {};
+});
+
+document.getElementById('btnSaveCRM').addEventListener('click', async () => {
+  const btn = document.getElementById('btnSaveCRM');
+  const teamData = JSON.parse(btn.dataset.teamData || '{}');
+  
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  hideAlert('saveError');
+  hideAlert('saveSuccess');
+
+  document.getElementById('aiStatusBox').classList.add('visible');
+  setAIStatus('Saving to Zoho CRM...');
+
+  try {
+    const result = await saveToCRM(researchedData, teamData);
+    document.getElementById('aiStatusBox').classList.remove('visible');
+
+    if (result.data?.[0]?.code === 'SUCCESS' || result.data?.[0]?.status === 'success') {
+      showSuccess('saveSuccess', `✓ Hotel "${researchedData.hotel_name}" successfully created in Zoho CRM.`);
+      btn.textContent = '✓ Saved';
+    } else {
+      const msg = result.data?.[0]?.message || result.message || JSON.stringify(result);
+      showError('saveError', 'CRM save failed: ' + msg + ' — Note: field API names may need adjusting for your specific CRM setup.');
+      btn.disabled = false;
+      btn.textContent = 'Save to Zoho CRM';
+    }
+  } catch(e) {
+    document.getElementById('aiStatusBox').classList.remove('visible');
+    showError('saveError', 'Save error: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Save to Zoho CRM';
+  }
+});
+
+document.getElementById('btnSettings').addEventListener('click', () => {
+  if (confirm('Disconnect from Zoho CRM and re-enter credentials?')) {
+    clearTokens();
+    document.getElementById('crmDot').classList.remove('connected');
+    document.getElementById('crmStatus').textContent = 'Not connected';
+    document.getElementById('clientId').value = '';
+    document.getElementById('clientSecret').value = '';
+    document.getElementById('grantCode').value = '';
+    showScreen('screenSetup');
+  }
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+(function init() {
+  const t = loadTokens();
+  if (t.refreshToken) {
+    document.getElementById('crmDot').classList.add('connected');
+    document.getElementById('crmStatus').textContent = 'CRM Connected';
+    showScreen('screenIntake');
+    setStep(1);
+  }
+})();
+</script>
+</body>
+</html>
