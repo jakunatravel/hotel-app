@@ -120,6 +120,7 @@
         <div class="field"><label>Preferred Room Category <span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">optional</span></label><input type="text" id="preferredRoom"></div>
         <div class="field"><label>Special Requests <span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">optional</span></label><input type="text" id="specialRequests"></div>
         <div class="field"><label>Commission</label><div class="commission-row"><input type="number" id="commission" value="10" min="0" max="100" step="0.5"><span style="color:var(--muted);font-size:13px">% — change if different from 10%</span></div></div>
+        <div class="field"><label>Relevant Notes <span style="color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0">optional — Claude will rewrite these into a proper paragraph</span></label><textarea id="manualNotes" placeholder="e.g. Best hotel for honeymoons, ask for rooms on high floor, GM is very responsive, clients loved the breakfast..."></textarea></div>
       </div>
       <div class="btn-row"><button class="btn btn-ghost" id="btnBackStep1">← Back</button><button class="btn btn-primary" id="btnResearch">Research with Claude →</button></div>
     </div>
@@ -360,6 +361,8 @@ async function buildAndSaveRecord(data,teamData,recordId){
   }
 
   // Relevant Notes excluded — add manually in Zoho (Rich Text requires different API)
+  // AI_Notes is a plain Multi Line field — saves perfectly with v2
+  const ai_notes = data.relevant_notes ? data.relevant_notes.trim() : '';
 
   const record={};
   const fields={
@@ -384,7 +387,8 @@ async function buildAndSaveRecord(data,teamData,recordId){
     Commission:parseFloat(teamData.commission)||10,
     Inspected:teamData.inspected,
     Preferred_Room_Category:teamData.preferredRoom,
-    Special_Requests:teamData.specialRequests
+    Special_Requests:teamData.specialRequests,
+    AI_Notes:ai_notes
   };
 
   Object.entries(fields).forEach(([k,v])=>{
