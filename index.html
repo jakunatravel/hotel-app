@@ -618,21 +618,20 @@ async function getValidToken() {
 // ─── ZOHO CRM CALLS ───────────────────────────────────────────────────────────
 async function crmGet(endpoint) {
   const token = await getValidToken();
-  const res = await fetch(`${CRM_BASE}${endpoint}`, {
-    headers: { 'Authorization': `Zoho-oauthtoken ${token}` }
+  const res = await fetch(`${FUNCTION_BASE}/.netlify/functions/zoho-crm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: `${CRM_BASE}${endpoint}`, method: 'GET', token })
   });
   return res.json();
 }
 
 async function crmPost(endpoint, data) {
   const token = await getValidToken();
-  const res = await fetch(`${CRM_BASE}${endpoint}`, {
+  const res = await fetch(`${FUNCTION_BASE}/.netlify/functions/zoho-crm`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Zoho-oauthtoken ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(data)
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: `${CRM_BASE}${endpoint}`, method: 'POST', token, body: data })
   });
   return res.json();
 }
