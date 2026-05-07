@@ -207,69 +207,90 @@ async function searchRecord(module,field,value){
 }
 
 async function researchHotel(hotelName,website,notes,existing){
-  // Build list of what's already filled in CRM
+  // Build what's already filled vs missing
   const filled={};
   const missing=[];
   if(existing){
-    const fieldMap={Website:'website',Phone_Number:'phone',Email:'email',Reservations_Email:'reservations_email',Concierge:'concierge_email',Address_1_City:'city',Address_1_Zip_Postal_Code:'zip',Address_1_Country_Region:'country',Address_1_Street_Address:'street_address',Address_1_Coordinates_Latitude:'latitude',Address_1_Coordinates_Longitude:'longitude',Price_Reference:'price_reference',Affiliation:'affiliation',Meal_Plans:'meal_plans',Facilities:'facilities',Hotel_Tags:'hotel_tags'};
+    const fieldMap={
+      Website:'website',Phone_Number:'phone',Email:'email',
+      Reservations_Email:'reservations_email',Concierge:'concierge_email',
+      Address_1_City:'city',Address_1_Zip_Postal_Code:'zip',
+      Address_1_Country_Region:'country',Address_1_Street_Address:'street_address',
+      Address_1_Coordinates_Latitude:'latitude',Address_1_Coordinates_Longitude:'longitude',
+      Price_Reference:'price_reference',Affiliation:'affiliation',
+      Meal_Plans:'meal_plans',Facilities:'facilities',Hotel_Tags:'hotel_tags'
+    };
     Object.entries(fieldMap).forEach(([crmKey,jsonKey])=>{
       const val=existing[crmKey];
       if(val&&(Array.isArray(val)?val.length>0:val.toString().trim())){
         filled[jsonKey]=val;
-      }else{
+      } else {
         missing.push(jsonKey);
       }
     });
   }
 
-  const existingNotesText=existing?.Relevant_Notes||'';
-  const missingList=existing?`\nFields already filled in CRM (keep these values exactly): ${Object.keys(filled).join(', ')}\nFields that need researching (empty in CRM): ${missing.join(', ')}`:'';
+  const existingNotes=existing?.Relevant_Notes||'';
 
   const prompt=`You are a luxury travel research assistant for Jakuna Travel.
 
-Research: "${hotelName}"
-${website?'Hotel website: '+website:''}
+Hotel: "${hotelName}"
+${website?'Website: '+website:''}
 Team notes: "${notes||'None'}"
-${missingList}
-${existingNotesText?`Existing Relevant Notes in CRM (keep and expand): "${existingNotesText}"`:''}
 
-Return ONLY valid JSON. For fields already filled, use the existing values provided below.
-Existing CRM values to keep: ${existing?JSON.stringify(filled):'none'}
+${existing?`EXISTING CRM DATA — keep these values exactly, do not change them:
+${JSON.stringify(filled,null,2)}
 
+Fields that are EMPTY and need researching: ${missing.join(', ')}
+
+EXISTING RELEVANT NOTES (keep all of this, only add to it):
+"${existingNotes}"
+`:'This is a new hotel — research all fields.'}
+
+Return ONLY a valid JSON object with these exact fields:
 {
-"hotel_name":"${existing?.Name||'Full official name'}",
-"website":"${filled.website||'Official website URL'}",
-"phone":"${filled.phone||'phone with country code or null'}",
-"email":"${filled.email||'general email or null'}",
-"reservations_email":"${filled.reservations_email||'reservations email or null'}",
-"concierge_email":"${filled.concierge_email||'concierge email or null'}",
-"street_address":"${filled.street_address||'street address or null'}",
-"city":"${filled.city||'city name'}",
-"zip":"${filled.zip||'postal code or null'}",
-"country":"${filled.country||'full country name'}",
-"latitude":"${filled.latitude||'latitude or null'}",
-"longitude":"${filled.longitude||'longitude or null'}",
-"hotel_group":"parent hotel group name",
-"price_reference":"${filled.price_reference||'one of: 200 or Less,200-500,500-800,800-1200,1200-2000,+2000'}",
-"affiliation":${filled.affiliation?JSON.stringify(filled.affiliation):['only from: Design Hotels,Leading Hotels of the World,Luxury Collection by Marriot,Preferred Hotels,Relais & Chateaux,Serandipians,Small Luxury Hotels of the World,Virtuoso']},
-"meal_plans":${filled.meal_plans?JSON.stringify(filled.meal_plans):['only from: Breakfast,Half Board,Full Board,All Inclusive']},
-"facilities":${filled.facilities?JSON.stringify(filled.facilities):['only from: Bar,Full Spa,Garden Area,Gym,Indoor Pool,Kids Club,Massage Room,Meeting Areas,Outdoor Pool,Restaurant,Sports Facilities — only Massage Room if NO Full Spa']},
-"hotel_tags":${filled.hotel_tags?JSON.stringify(filled.hotel_tags):['only from: Adults Only,Art,Beachfront,Beautiful Landscape,Boutique Hotel,City Hotel,Contemporary Design,Cruise (shared),Historical,Kids-Friendly,Lodge,Pet-Friendly,PVT Charter,Resort,Spa/Wellness,Traditional Luxury,Train Journeys,Winery']},
-"relevant_notes":"${existingNotesText?'Start with existing notes, then add: ':''}standout features, unique selling points, ideal client profile, any team notes. Keep all existing information.",
-"research_confidence":"high, medium, or low"
+  "hotel_name": "full official name",
+  "website": "url",
+  "phone": "with country code or null",
+  "email": "or null",
+  "reservations_email": "or null",
+  "concierge_email": "or null",
+  "street_address": "or null",
+  "city": "city name",
+  "zip": "or null",
+  "country": "full country name",
+  "latitude": "or null",
+  "longitude": "or null",
+  "hotel_group": "parent group name",
+  "price_reference": "one of: 200 or Less, 200-500, 500-800, 800-1200, 1200-2000, +2000",
+  "affiliation": ["only from: Design Hotels, Leading Hotels of the World, Luxury Collection by Marriot, Preferred Hotels, Relais & Chateaux, Serandipians, Small Luxury Hotels of the World, Virtuoso"],
+  "meal_plans": ["only from: Breakfast, Half Board, Full Board, All Inclusive"],
+  "facilities": ["only from: Bar, Full Spa, Garden Area, Gym, Indoor Pool, Kids Club, Massage Room, Meeting Areas, Outdoor Pool, Restaurant, Sports Facilities — only include Massage Room if there is NO Full Spa"],
+  "hotel_tags": ["only from: Adults Only, Art, Beachfront, Beautiful Landscape, Boutique Hotel, City Hotel, Contemporary Design, Cruise (shared), Historical, Kids-Friendly, Lodge, Pet-Friendly, PVT Charter, Resort, Spa/Wellness, Traditional Luxury, Train Journeys, Winery"],
+  "relevant_notes": "Write a comprehensive paragraph that STARTS with the existing notes verbatim if any exist, then appends new information: standout features, unique selling points, ideal client profile, what makes it special. Never discard existing content.",
+  "research_confidence": "high, medium, or low"
 }`;
 
-  const res=await fetch(`${FUNC}/claude-research`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:2000,messages:[{role:'user',content:prompt}]})});
+  const res=await fetch(`${FUNC}/claude-research`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:2000,messages:[{role:'user',content:prompt}]})
+  });
   const data=await res.json();
   if(data.error)throw new Error(data.error.message||JSON.stringify(data.error));
   if(!data.content)throw new Error('No response: '+JSON.stringify(data));
   const text=data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
-  console.log('Claude response preview:',text.substring(0,300));
+  console.log('Claude notes returned:',text.substring(0,500));
   const match=text.match(/\{[\s\S]*\}/);
   if(!match)throw new Error('Parse failed: '+text.substring(0,300));
   const result=JSON.parse(match[0]);
-  // Ensure relevant_notes is never empty
-  if(!result.relevant_notes&&existingNotesText) result.relevant_notes=existingNotesText;
+  // Hard fallback — never lose existing notes
+  if(!result.relevant_notes&&existingNotes) result.relevant_notes=existingNotes;
+  // Restore filled fields if Claude accidentally changed them
+  if(existing){
+    Object.entries(filled).forEach(([k,v])=>{
+      if(v&&(!result[k]||(Array.isArray(result[k])&&result[k].length===0))) result[k]=v;
+    });
+  }
   return result;
 }
 
@@ -391,18 +412,51 @@ document.getElementById('btnResearch').addEventListener('click',async()=>{
     if(!existingRecord){
       existingRecord=await searchRecord(MODULE.Hotels,'Name',hotelName);
     } else {
-      // Already selected from suggestions — fetch full record
       try{const full=await crmCall('/Hotels/'+existingRecord.id);if(full.data)existingRecord=full.data[0];}catch(e){}
     }
-    setAIStatus(existingRecord?'Hotel found — researching updates...':'Researching '+hotelName+'...');
-    const data=await researchHotel(hotelName,website,notes,existingRecord);
+    setAIStatus(existingRecord?'Hotel found — filling missing fields only...':'Researching '+hotelName+'...');
+    const researched=await researchHotel(hotelName,website,notes,existingRecord);
+
+    // ── MERGE: CRM values always win over researched values ──────────────────
+    const fieldMap={
+      Website:'website', Phone_Number:'phone', Email:'email',
+      Reservations_Email:'reservations_email', Concierge:'concierge_email',
+      Address_1_City:'city', Address_1_Zip_Postal_Code:'zip',
+      Address_1_Country_Region:'country', Address_1_Street_Address:'street_address',
+      Address_1_Coordinates_Latitude:'latitude', Address_1_Coordinates_Longitude:'longitude',
+      Price_Reference:'price_reference', Affiliation:'affiliation',
+      Meal_Plans:'meal_plans', Facilities:'facilities', Hotel_Tags:'hotel_tags'
+    };
+    const merged={...researched};
+    if(existingRecord){
+      Object.entries(fieldMap).forEach(([crmKey,jsonKey])=>{
+        const crmVal=existingRecord[crmKey];
+        if(crmVal&&(Array.isArray(crmVal)?crmVal.length>0:crmVal.toString().trim())){
+          merged[jsonKey]=crmVal; // CRM value always wins
+        }
+      });
+      // Hotel name always from CRM
+      merged.hotel_name=existingRecord.Name||researched.hotel_name;
+      // Relevant notes: use researched (which already merges existing+new)
+      // but fallback to CRM notes if researched returned empty
+      if(!merged.relevant_notes&&existingRecord.Relevant_Notes){
+        merged.relevant_notes=existingRecord.Relevant_Notes;
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     document.getElementById('researchLog').style.display='block';
-    document.getElementById('researchLogContent').innerHTML=`✓ <strong>${data.hotel_name}</strong> | ${data.city}, ${data.country}<br>✓ Price: <strong>${data.price_reference}</strong> | Facilities: ${(data.facilities||[]).length} | Tags: ${(data.hotel_tags||[]).length}<br>✓ Confidence: <strong>${data.research_confidence}</strong><br>${existingRecord?'⚠ <strong>Existing record found</strong> — review updates below':'✓ New hotel'}`;
+    document.getElementById('researchLogContent').innerHTML=`
+      ✓ <strong>${merged.hotel_name}</strong> | ${merged.city}, ${merged.country}<br>
+      ✓ Price: <strong>${merged.price_reference}</strong> | Facilities: ${(merged.facilities||[]).length} | Tags: ${(merged.hotel_tags||[]).length}<br>
+      ✓ Confidence: <strong>${researched.research_confidence}</strong><br>
+      ${existingRecord?'⚠ <strong>Existing record</strong> — CRM values kept, only empty fields filled':'✓ New hotel — all fields researched'}
+    `;
     setTimeout(()=>{
       document.getElementById('aiStatusBox').classList.remove('visible');
-      setStep(4);buildPreview(data,teamData);
+      setStep(4);buildPreview(merged,teamData);
       if(existingRecord){
-        showAlert('duplicateWarning',`⚠ "${hotelName}" already exists in your CRM. Review changes and click "Update Existing Record" to save changes, or "Save to Zoho CRM" to create a new record.`,'warning');
+        showAlert('duplicateWarning',`⚠ "${merged.hotel_name}" already exists. CRM values shown as-is. Only empty fields were researched. Click "Update Existing Record" to save.`,'warning');
         document.getElementById('btnUpdateCRM').style.display='inline-block';
       }
     },800);
@@ -503,7 +557,7 @@ function showSuggestions(query){
   box.style.display='block';
   box.innerHTML=matches.map(h=>`
     <div onclick="selectExistingHotel('${h.id}','${h.Name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}',this)"
-         style="padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;"
+         style="padding:14px 16px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(201,168,76,0.2);"
          onmouseover="this.style.background='var(--paper)'" onmouseout="this.style.background='var(--white)'">
       <span>${h.Name}</span>
       <span style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-left:12px;flex-shrink:0;">Update →</span>
@@ -554,7 +608,7 @@ document.getElementById('hotelName').addEventListener('input',function(){
 });
 
 document.getElementById('hotelName').addEventListener('blur',()=>{
-  setTimeout(()=>document.getElementById('hotelSuggestions').style.display='none',200);
+  setTimeout(()=>document.getElementById('hotelSuggestions').style.display='none',400);
 });
 
 (function init(){
