@@ -508,6 +508,9 @@ async function handleSave(recordId){
   const saveBtn=document.getElementById('btnSaveCRM');
   const updateBtn=document.getElementById('btnUpdateCRM');
   const btn=recordId?updateBtn:saveBtn;
+  // Hide the other button
+  if(recordId) saveBtn.style.display='none';
+  else updateBtn.style.display='none';
   btn.disabled=true;btn.textContent=recordId?'Updating...':'Saving...';
   hideAlert('saveError');hideAlert('saveSuccess');
   document.getElementById('aiStatusBox').classList.add('visible');
@@ -538,7 +541,13 @@ document.getElementById('btnStartOver').addEventListener('click',()=>{
   existingRecord=null;
   ['hotelName','hotelWebsite','hotelNotes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('btnUpdateCRM').style.display='none';
+  document.getElementById('btnUpdateCRM').disabled=false;
+  document.getElementById('btnUpdateCRM').textContent='Update Existing Record';
+  document.getElementById('btnSaveCRM').style.display='inline-block';
+  document.getElementById('btnSaveCRM').disabled=false;
+  document.getElementById('btnSaveCRM').textContent='Save to Zoho CRM';
   document.getElementById('btnAddAnother').style.display='none';
+  document.getElementById('researchLog').style.display='none';
   hideAlert('duplicateWarning');setStep(1);
 });
 
@@ -553,11 +562,18 @@ document.getElementById('btnAddAnother').addEventListener('click',()=>{
   document.getElementById('manualNotes').value='';
   document.getElementById('btnUpdateCRM').style.display='none';
   document.getElementById('btnAddAnother').style.display='none';
+  document.getElementById('btnSaveCRM').style.display='inline-block';
+  document.getElementById('btnSaveCRM').disabled=false;
+  document.getElementById('btnSaveCRM').textContent='Save to Zoho CRM';
+  document.getElementById('btnUpdateCRM').disabled=false;
+  document.getElementById('btnUpdateCRM').textContent='Update Existing Record';
   document.getElementById('hotelSearchStatus').textContent='';
   document.getElementById('hotelSuggestions').style.display='none';
+  document.getElementById('researchLog').style.display='none';
   hideAlert('duplicateWarning');
   hideAlert('saveSuccess');
   hideAlert('saveError');
+  allHotels=[];
   setStep(1);
 });
 
