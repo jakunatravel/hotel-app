@@ -140,6 +140,7 @@
         <button class="btn btn-ghost" id="btnStartOver">← Start Over</button>
         <button class="btn btn-warning" id="btnUpdateCRM" style="display:none">Update Existing Record</button>
         <button class="btn btn-success" id="btnSaveCRM">Save to Zoho CRM</button>
+        <button class="btn btn-primary" id="btnAddAnother" style="display:none">+ Add Another Hotel</button>
       </div>
     </div>
   </div>
@@ -518,6 +519,7 @@ async function handleSave(recordId){
     if(result.data?.[0]?.code==='SUCCESS'||result.data?.[0]?.status==='success'){
       showAlert('saveSuccess',`✓ "${data.hotel_name}" ${recordId?'updated':'created'} in Zoho CRM.`,'success');
       btn.textContent=recordId?'✓ Updated':'✓ Saved';
+      document.getElementById('btnAddAnother').style.display='inline-block';
     }else{
       showAlert('saveError',(recordId?'Update':'Save')+' failed: '+(result.data?.[0]?.message||JSON.stringify(result)),'error');
       btn.disabled=false;btn.textContent=recordId?'Update Existing Record':'Save to Zoho CRM';
@@ -536,7 +538,27 @@ document.getElementById('btnStartOver').addEventListener('click',()=>{
   existingRecord=null;
   ['hotelName','hotelWebsite','hotelNotes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('btnUpdateCRM').style.display='none';
+  document.getElementById('btnAddAnother').style.display='none';
   hideAlert('duplicateWarning');setStep(1);
+});
+
+document.getElementById('btnAddAnother').addEventListener('click',()=>{
+  existingRecord=null;
+  ['hotelName','hotelWebsite','hotelNotes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('hotelStatus').value='';
+  document.getElementById('inspected').checked=false;
+  document.getElementById('preferredRoom').value='';
+  document.getElementById('specialRequests').value='';
+  document.getElementById('commission').value='10';
+  document.getElementById('manualNotes').value='';
+  document.getElementById('btnUpdateCRM').style.display='none';
+  document.getElementById('btnAddAnother').style.display='none';
+  document.getElementById('hotelSearchStatus').textContent='';
+  document.getElementById('hotelSuggestions').style.display='none';
+  hideAlert('duplicateWarning');
+  hideAlert('saveSuccess');
+  hideAlert('saveError');
+  setStep(1);
 });
 
 document.getElementById('btnSettings').addEventListener('click',()=>{
