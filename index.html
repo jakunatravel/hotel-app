@@ -355,13 +355,55 @@ async function buildAndSaveRecord(data,teamData,recordId){
   }
 
   setAIStatus('Looking up Hotel Group...');
-  const gn=data.hotel_group?data.hotel_group.toUpperCase():null;
-  const gRec=gn?await searchRecord(MODULE.Hotels,'Name',gn):null;
-  const groupId=gRec?.id||null;
+  // Use existing Hotel_Group from CRM if available, otherwise look up by name
+  let groupId=null;
+  if(existingRecord?.Hotel_Group?.id){
+    groupId=existingRecord.Hotel_Group.id;
+  } else if(data.hotel_group){
+    const gn=data.hotel_group.toUpperCase();
+    // Only search if hotel_group is different from hotel_name (avoid self-reference)
+    if(gn!==data.hotel_name.toUpperCase()){
+      const gRec=await searchRecord(MODULE.Hotels,'Name',gn);
+      groupId=gRec?.id||null;
+    }
+  }
+
+  const notes_value = data.relevant_notes ? data.relevant_notes.trim() : '';
+  console.log('Saving Relevant_Notes, length:', notes_value.length, 'preview:', notes_value.substring(0,100));
 
   const record={};
-  const fields={Name:data.hotel_name,Website:data.website,Phone_Number:data.phone,Email:data.email,Reservations_Email:data.reservations_email,Concierge:data.concierge_email,Address_1_Street_Address:data.street_address,Address_1_City:data.city,Address_1_Zip_Postal_Code:data.zip,Address_1_Country_Region:data.country,Address_1_Coordinates_Latitude:data.latitude?parseFloat(data.latitude):null,Address_1_Coordinates_Longitude:data.longitude?parseFloat(data.longitude):null,Price_Reference:data.price_reference,Affiliation:data.affiliation,Meal_Plans:data.meal_plans,Facilities:data.facilities,Hotel_Tags:data.hotel_tags,Relevant_Notes:data.relevant_notes,Status:teamData.status,Commission:parseFloat(teamData.commission)||10,Inspected:teamData.inspected,Preferred_Room_Category:teamData.preferredRoom,Special_Requests:teamData.specialRequests};
-  Object.entries(fields).forEach(([k,v])=>{if(v===null||v===undefined||v==='')return;if(Array.isArray(v)&&v.length===0)return;record[k]=v;});
+  const fields={
+    Name:data.hotel_name,
+    Website:data.website,
+    Phone_Number:data.phone,
+    Email:data.email,
+    Reservations_Email:data.reservations_email,
+    Concierge:data.concierge_email,
+    Address_1_Street_Address:data.street_address,
+    Address_1_City:data.city,
+    Address_1_Zip_Postal_Code:data.zip,
+    Address_1_Country_Region:data.country,
+    Address_1_Coordinates_Latitude:data.latitude?parseFloat(data.latitude):null,
+    Address_1_Coordinates_Longitude:data.longitude?parseFloat(data.longitude):null,
+    Price_Reference:data.price_reference,
+    Affiliation:data.affiliation,
+    Meal_Plans:data.meal_plans,
+    Facilities:data.facilities,
+    Hotel_Tags:data.hotel_tags,
+    Status:teamData.status,
+    Commission:parseFloat(teamData.commission)||10,
+    Inspected:teamData.inspected,
+    Preferred_Room_Category:teamData.preferredRoom,
+    Special_Requests:teamData.specialRequests
+  };
+  // Add Relevant_Notes separately — never skip it if it has content
+  if(notes_value) fields.Relevant_Notes = notes_value;
+
+  Object.entries(fields).forEach(([k,v])=>{
+    if(v===null||v===undefined||v==='')return;
+    if(Array.isArray(v)&&v.length===0)return;
+    record[k]=v;
+  });
   if(groupId)record.Hotel_Group={id:groupId};
   if(cityId)record.City_Region={id:cityId};
   if(countryId)record.Countries=[{id:countryId}];
