@@ -400,9 +400,9 @@ async function buildAndSaveRecord(data,teamData,recordId){
   if(countryId)record.Countries=[{id:countryId}];
 
   setAIStatus(recordId?'Updating in Zoho CRM...':'Creating in Zoho CRM...');
-  console.log('Saving record, recordId:', recordId);
+  console.log('Save called. recordId:', recordId, 'type:', typeof recordId);
+  console.log('existingRecord:', JSON.stringify(existingRecord?.id), existingRecord?.Name);
   if(recordId){
-    // v6 requires id inside the data payload for updates
     record.id = recordId;
     return crmCall(`/${MODULE.Hotels}`,'PUT',{data:[record]});
   } else {
@@ -640,7 +640,7 @@ document.getElementById('hotelName').addEventListener('input',function(){
   existingRecord=null;
   document.getElementById('hotelSearchStatus').textContent='';
   document.getElementById('hotelSuggestions').style.display='none';
-  if(!tokens.refreshToken)return;
+  if(!tokens.password&&!tokens.refreshToken)return;
   searchTimeout=setTimeout(async()=>{
     await loadAllHotels();
     showSuggestions(this.value);
