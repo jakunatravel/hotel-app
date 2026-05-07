@@ -621,7 +621,11 @@ async function crmGet(endpoint) {
   const res = await fetch(`${FUNCTION_BASE}/.netlify/functions/zoho-crm`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url: `${CRM_BASE}${endpoint}`, method: 'GET', token })
+    body: JSON.stringify({
+      url: `${CRM_BASE}${endpoint}`,
+      method: 'GET',
+      token
+    })
   });
   return res.json();
 }
@@ -631,25 +635,36 @@ async function crmPost(endpoint, data) {
   const res = await fetch(`${FUNCTION_BASE}/.netlify/functions/zoho-crm`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url: `${CRM_BASE}${endpoint}`, method: 'POST', token, body: data })
+    body: JSON.stringify({
+      url: `${CRM_BASE}${endpoint}`,
+      method: 'POST',
+      token,
+      body: data
+    })
   });
   return res.json();
 }
 
 // ─── MODULE NAME MAP ──────────────────────────────────────────────────────────
-// Zoho uses CustomModuleN as the API endpoint for custom modules
+// Using API Names from Zoho CRM settings
 const MODULE = {
   Hotels:        'Hotels',
   Cities_Regions:'Cities_Regions',
   Countries:     'Countries',
-  Hotel_Groups:  'Hotels'
+  Hotel_Groups:  'Hotels'  // Hotel Groups live in the same Hotels module as CAPS records
 };
 
 async function searchRecord(module, field, value) {
   try {
-    const data = await crmGet(`/${module}/search?criteria=(${field}:equals:${encodeURIComponent(value)})`);
-    return data.data ? data.data[0] : null;
-  } catch(e) { return null; }
+    const data = await crmGet(`/${module}/search?criteria=(${field}:equals:${encodeURIComponent(value)})&per_page=1`);
+    if (data.data && data.data.length > 0) return data.data[0];
+    // Try word search as fallback
+    const data2 = await crmGet(`/${module}/search?word=${encodeURIComponent(value)}`);
+    return data2.data ? data2.data[0] : null;
+  } catch(e) { 
+    console.log('searchRecord error:', module, field, value, e);
+    return null; 
+  }
 }
 
 async function getOrCreateCityRegion(cityName, countryId) {
@@ -824,7 +839,7 @@ function buildPreview(data, teamData) {
     meal_plans: getMulti('meal_plans'),
     facilities: getMulti('facilities'),
     hotel_tags: getMulti('hotel_tags'),
-    relevant_notes: document.getElementById('edit_notes').value,
+    relevant_notes: document.getElementById('edit_notes') ? document.getElementById('edit_notes').value : '',
   });
 
   window._getEditedTeamData = () => ({
@@ -841,9 +856,13 @@ function buildPreview(data, teamData) {
 async function saveToCRM(data, teamData) {
   setAIStatus('Looking up Country in CRM...');
 
-  // 1. Find country record
-  const countryRecord = await searchRecord(MODULE.Countries, 'Name', data.country);
+  // 1. Find country record - try both Name and Country_Name fields
+  let countryRecord = await searchRecord(MODULE.Countries, 'Name', data.country);
+  if (!countryRecord) countryRecord = await searchRecord(MODULE.Countries, 'Country_Name', data.country);
   const countryId = countryRecord?.id || null;
+
+  // Log for debugging
+  console.log('Country search:', data.country, '-> found:', countryId);
 
   // 2. Find or create City/Region
   setAIStatus('Checking City/Region...');
