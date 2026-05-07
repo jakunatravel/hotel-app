@@ -639,10 +639,10 @@ async function crmPost(endpoint, data) {
 // ─── MODULE NAME MAP ──────────────────────────────────────────────────────────
 // Zoho uses CustomModuleN as the API endpoint for custom modules
 const MODULE = {
-  Hotels:        'CustomModule3',
-  Cities_Regions:'CustomModule2',
-  Countries:     'CustomModule1',
-  Hotel_Groups:  'CustomModule3'  // Hotel Groups live in the same Hotels module as CAPS records
+  Hotels:        'Hotels',
+  Cities_Regions:'Cities_Regions',
+  Countries:     'Countries',
+  Hotel_Groups:  'Hotels'
 };
 
 async function searchRecord(module, field, value) {
