@@ -219,12 +219,10 @@ async function researchHotel(hotelName,website,notes,existing){
       Address_1_Coordinates_Latitude:'latitude',Address_1_Coordinates_Longitude:'longitude',
       Price_Reference:'price_reference',Affiliation:'affiliation',
       Meal_Plans:'meal_plans',Facilities:'facilities',Hotel_Tags:'hotel_tags',
-      Hotel_Group:'hotel_group'
+
     };
     Object.entries(fieldMap).forEach(([crmKey,jsonKey])=>{
       let val=existing[crmKey];
-      // Hotel_Group is a lookup — extract the name
-      if(crmKey==='Hotel_Group'&&val&&typeof val==='object') val=val.name||val.Name||null;
       if(val&&(Array.isArray(val)?val.length>0:val.toString().trim())){
         filled[jsonKey]=val;
       } else {
@@ -264,7 +262,6 @@ Return ONLY a valid JSON object with these exact fields:
   "country": "full country name",
   "latitude": "or null",
   "longitude": "or null",
-  "hotel_group": "parent group name",
   "price_reference": "one of: 200 or Less, 200-500, 500-800, 800-1200, 1200-2000, +2000",
   "affiliation": ["only from: Design Hotels, Leading Hotels of the World, Luxury Collection by Marriot, Preferred Hotels, Relais & Chateaux, Serandipians, Small Luxury Hotels of the World, Virtuoso"],
   "meal_plans": ["only from: Breakfast, Half Board, Full Board, All Inclusive"],
@@ -311,7 +308,6 @@ function buildPreview(data,teamData){
   const isEx=!!existingRecord;
   grid.innerHTML=`
     <div><div class="preview-label">Hotel Name${isEx?' <span class="existing-badge">Existing</span>':''}</div>${inp('hotel_name',data.hotel_name)}</div>
-    <div><div class="preview-label">Hotel Group</div>${inp('hotel_group',data.hotel_group)}</div>
     <div><div class="preview-label">Website</div>${inp('website',data.website)}</div>
     <div><div class="preview-label">Phone</div>${inp('phone',data.phone)}</div>
     <div><div class="preview-label">Email</div>${inp('email',data.email)}</div>
@@ -343,7 +339,7 @@ function buildPreview(data,teamData){
 }
 
 function getMulti(id){return Array.from(document.querySelectorAll(`#e_${id} input:checked`)).map(c=>c.value);}
-function getEditedData(){return{hotel_name:document.getElementById('e_hotel_name').value,hotel_group:document.getElementById('e_hotel_group').value,website:document.getElementById('e_website').value,phone:document.getElementById('e_phone').value,email:document.getElementById('e_email').value,reservations_email:document.getElementById('e_reservations_email').value,concierge_email:document.getElementById('e_concierge_email').value,city:document.getElementById('e_city').value,country:document.getElementById('e_country').value,street_address:document.getElementById('e_street_address').value,zip:document.getElementById('e_zip').value,latitude:document.getElementById('e_lat').value,longitude:document.getElementById('e_lng').value,price_reference:document.getElementById('e_price_ref').value,affiliation:getMulti('affiliation'),meal_plans:getMulti('meal_plans'),facilities:getMulti('facilities'),hotel_tags:getMulti('hotel_tags'),relevant_notes:document.getElementById('e_notes').value};}
+function getEditedData(){return{hotel_name:document.getElementById('e_hotel_name').value,website:document.getElementById('e_website').value,phone:document.getElementById('e_phone').value,email:document.getElementById('e_email').value,reservations_email:document.getElementById('e_reservations_email').value,concierge_email:document.getElementById('e_concierge_email').value,city:document.getElementById('e_city').value,country:document.getElementById('e_country').value,street_address:document.getElementById('e_street_address').value,zip:document.getElementById('e_zip').value,latitude:document.getElementById('e_lat').value,longitude:document.getElementById('e_lng').value,price_reference:document.getElementById('e_price_ref').value,affiliation:getMulti('affiliation'),meal_plans:getMulti('meal_plans'),facilities:getMulti('facilities'),hotel_tags:getMulti('hotel_tags'),relevant_notes:document.getElementById('e_notes').value};}
 function getEditedTeamData(){return{status:document.getElementById('e_status').value,commission:document.getElementById('e_commission').value,inspected:document.getElementById('e_inspected').value==='true',preferredRoom:document.getElementById('e_preferred_room').value,specialRequests:document.getElementById('e_special_requests').value};}
 
 async function buildAndSaveRecord(data,teamData,recordId){
@@ -363,17 +359,6 @@ async function buildAndSaveRecord(data,teamData,recordId){
     }
   }
 
-  setAIStatus('Looking up Hotel Group...');
-  // Use existing Hotel_Group from CRM if available, otherwise look up by name
-  let groupId=null;
-  if(existingRecord?.Hotel_Group?.id){
-    groupId=existingRecord.Hotel_Group.id;
-  } else if(data.hotel_group){
-    const gn=data.hotel_group.toUpperCase();
-    // Only search if hotel_group is different from hotel_name (avoid self-reference)
-    if(gn!==data.hotel_name.toUpperCase()){
-      const gRec=await searchRecord(MODULE.Hotels,'Name',gn);
-      groupId=gRec?.id||null;
     }
   }
 
@@ -414,12 +399,18 @@ async function buildAndSaveRecord(data,teamData,recordId){
     if(Array.isArray(v)&&v.length===0)return;
     record[k]=v;
   });
-  if(groupId)record.Hotel_Group={id:groupId};
   if(cityId)record.City_Region={id:cityId};
   if(countryId)record.Countries=[{id:countryId}];
 
   setAIStatus(recordId?'Updating in Zoho CRM...':'Creating in Zoho CRM...');
-  return recordId?crmCall(`/${MODULE.Hotels}/${recordId}`,'PUT',{data:[record]}):crmCall(`/${MODULE.Hotels}`,'POST',{data:[record]});
+  console.log('Saving record, recordId:', recordId);
+  if(recordId){
+    // v6 requires id inside the data payload for updates
+    record.id = recordId;
+    return crmCall(`/${MODULE.Hotels}`,'PUT',{data:[record]});
+  } else {
+    return crmCall(`/${MODULE.Hotels}`,'POST',{data:[record]});
+  }
 }
 
 document.getElementById('btnConnect').addEventListener('click',async()=>{
@@ -489,9 +480,6 @@ document.getElementById('btnResearch').addEventListener('click',async()=>{
       });
       // Hotel name always from CRM
       merged.hotel_name=existingRecord.Name||researched.hotel_name;
-      // Hotel Group — extract name from lookup object if present
-      if(existingRecord.Hotel_Group){
-        merged.hotel_group=existingRecord.Hotel_Group.name||existingRecord.Hotel_Group.Name||researched.hotel_group;
       }
       // Relevant notes: use researched (which already merges existing+new)
       // but fallback to CRM notes if researched returned empty
